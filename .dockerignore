@@ -1,0 +1,11 @@
+node_modules
+.output
+.nitro
+.vinxi
+dist
+.git
+.env
+.env.*
+*.log
+.DS_Store
+supabase/.temp
