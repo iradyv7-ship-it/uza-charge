@@ -30,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local secrets. Never commit this — copy .env.example instead.
+# Untracked 29 Aug 2026: it held only publishable keys, but a tracked .env is how a
+# service-role key eventually gets committed by somebody who did not notice.
+.env
