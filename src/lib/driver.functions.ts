@@ -24,47 +24,24 @@ export const startSession = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!driver) throw new Error("No driver profile found for this account");
 
-    const { data: open } = await supabaseAdmin
-      .from("sessions")
-      .select("id")
-      .eq("driver_id", driver.id)
-      .in("status", ["preparing", "charging", "finishing"])
-      .maybeSingle();
-    if (open) return { sessionId: open.id, alreadyCharging: true };
-
-    const { data: connector } = await supabaseAdmin
-      .from("connectors")
-      .select("id, status, charger_id, chargers(status)")
-      .eq("id", data.connectorId)
-      .maybeSingle();
-    if (!connector) throw new Error("Connector not found");
-    if ((connector.chargers as { status: string } | null)?.status !== "online")
-      throw new Error("Charger is not online");
-    if (!["available", "preparing"].includes(connector.status))
-      throw new Error("Connector is not available");
-
-    const { data: session, error } = await supabaseAdmin
-      .from("sessions")
-      .insert({
-        connector_id: connector.id,
-        driver_id: driver.id,
-        start_method: data.startMethod,
-        status: "charging",
-        soc_start: Math.round(18 + Math.random() * 32),
-        vin: data.vin ?? null,
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-
-    await supabaseAdmin.from("connectors").update({ status: "charging" }).eq("id", connector.id);
-    await supabaseAdmin.from("charger_events").insert({
-      charger_id: connector.charger_id,
-      type: "StartTransaction",
-      payload: { session_id: session.id, id_tag: driver.id, start_method: data.startMethod },
+    // Single atomic call — see supabase/migrations/20260904090000_atomic_start_session.sql
+    // for why this used to be three separate round trips (read status, insert session,
+    // update connector) with no lock between them, and how two drivers could both pass
+    // the availability check for the same connector before either write landed.
+    //
+    // The function returns a composite (session, already_charging) rather than the bare
+    // session row, so "the driver already had this exact session open" is a value the
+    // database states outright — not something this handler has to infer afterwards.
+    const { data: result, error } = await supabaseAdmin.rpc("start_charging_session", {
+      _driver_id: driver.id,
+      _connector_id: data.connectorId,
+      _start_method: data.startMethod,
+      ...(data.vin ? { _vin: data.vin } : {}),
     });
+    if (error) throw new Error(error.message);
+    if (!result?.session) throw new Error("start_charging_session returned no session");
 
-    return { sessionId: session.id, alreadyCharging: false };
+    return { sessionId: result.session.id, alreadyCharging: result.already_charging ?? false };
   });
 
 /** Stop charging. Final cost is priced on the backend from meter values. */
@@ -177,7 +154,12 @@ export const paySession = createServerFn({ method: "POST" })
     if (existing) {
       await supabaseAdmin
         .from("payments")
-        .update({ method: data.method, amount_rwf: amount, status: "settled", provider_ref: providerRef })
+        .update({
+          method: data.method,
+          amount_rwf: amount,
+          status: "settled",
+          provider_ref: providerRef,
+        })
         .eq("id", existing.id);
     } else {
       await supabaseAdmin.from("payments").insert({
