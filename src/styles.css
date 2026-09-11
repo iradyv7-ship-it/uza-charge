@@ -5,9 +5,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * UZA Charge — control-room design system.
- * Deep navy canvas, panelled surfaces, gold used sparingly, green = live,
- * red = fault. Every measured value renders in the mono instrument face.
+ * UZA CHARGE NETWORK — control-room design system.
+ *
+ * Quiet institutional confidence: deep navy canvas, panelled surfaces, gold
+ * used sparingly, green = live, amber = at risk, red = faulted. Every measured
+ * value renders in the mono instrument face with tabular numerals.
+ *
+ * All colour is defined here as HSL channel triplets and consumed through
+ * semantic tokens. Components never write a raw hex value, `text-white` or
+ * `bg-black`. Both themes are defined at token level: `.dark` on <html> is the
+ * control-room default, `:root` alone is the daylight theme.
  */
 
 @theme inline {
@@ -17,73 +24,124 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
 
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-panel: var(--panel);
-  --color-panel-raised: var(--panel-raised);
-  --color-card: var(--panel);
-  --color-card-foreground: var(--foreground);
-  --color-popover: var(--panel-raised);
-  --color-popover-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-live: var(--live);
-  --color-live-foreground: var(--live-foreground);
-  --color-fault: var(--fault);
-  --color-fault-foreground: var(--fault-foreground);
-  --color-destructive: var(--fault);
-  --color-destructive-foreground: var(--fault-foreground);
-  --color-border: var(--border);
-  --color-grid: var(--grid);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-ring-offset-background: var(--background);
-  --color-tier-sharp: var(--tier-sharp);
-  --color-tier-peak: var(--tier-peak);
-  --color-tier-standard: var(--tier-standard);
-  --color-tier-valley: var(--tier-valley);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-panel: hsl(var(--panel));
+  --color-panel-raised: hsl(var(--panel-raised));
+  --color-card: hsl(var(--panel));
+  --color-card-foreground: hsl(var(--foreground));
+  --color-popover: hsl(var(--panel-raised));
+  --color-popover-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  /* Status: GREEN on track, AMBER at risk, RED blocked. Always paired with an
+     icon or text label in the UI — never colour alone. */
+  --color-live: hsl(var(--live));
+  --color-live-foreground: hsl(var(--live-foreground));
+  --color-warn: hsl(var(--warn));
+  --color-warn-foreground: hsl(var(--warn-foreground));
+  --color-fault: hsl(var(--fault));
+  --color-fault-foreground: hsl(var(--fault-foreground));
+  --color-destructive: hsl(var(--fault));
+  --color-destructive-foreground: hsl(var(--fault-foreground));
+  --color-idle: hsl(var(--idle));
+
+  --color-border: hsl(var(--border));
+  --color-grid: hsl(var(--grid));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-ring-offset-background: hsl(var(--background));
+
+  --color-tier-sharp: hsl(var(--tier-sharp));
+  --color-tier-peak: hsl(var(--tier-peak));
+  --color-tier-standard: hsl(var(--tier-standard));
+  --color-tier-valley: hsl(var(--tier-valley));
 }
 
+/* Daylight theme — matched to uzamobility.com: off-white canvas (#FFFEFC),
+   deep forest green as primary (#174438), lime (#AAFF47) as the single accent,
+   neutral greys (#E9E9E9) for structure. */
 :root {
   --radius: 0.375rem;
 
-  --background: oklch(0.176 0.031 259);
-  --foreground: oklch(0.955 0.008 250);
-  --panel: oklch(0.243 0.038 261);
-  --panel-raised: oklch(0.285 0.041 261);
-  --muted: oklch(0.285 0.041 261);
-  --muted-foreground: oklch(0.685 0.028 254);
+  --background: 40 100% 99%;
+  --foreground: 159 48% 8%;
+  --panel: 0 0% 100%;
+  --panel-raised: 0 0% 96%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 165 10% 38%;
 
-  --primary: oklch(0.786 0.126 79.5);
-  --primary-foreground: oklch(0.19 0.035 260);
-  --secondary: oklch(0.285 0.041 261);
-  --secondary-foreground: oklch(0.955 0.008 250);
-  --accent: oklch(0.786 0.126 79.5);
-  --accent-foreground: oklch(0.19 0.035 260);
+  --primary: 164 50% 18%;
+  --primary-foreground: 40 100% 99%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 164 50% 18%;
+  --accent: 88 100% 64%;
+  --accent-foreground: 159 48% 8%;
 
-  --live: oklch(0.803 0.153 163.5);
-  --live-foreground: oklch(0.19 0.035 260);
-  --fault: oklch(0.714 0.153 20.5);
-  --fault-foreground: oklch(0.19 0.035 260);
+  --live: 151 93% 22%;
+  --live-foreground: 0 0% 100%;
+  --warn: 38 100% 49%;
+  --warn-foreground: 0 0% 100%;
+  --fault: 355 100% 45%;
+  --fault-foreground: 0 0% 100%;
+  --idle: 0 0% 45%;
 
-  --border: oklch(0.315 0.038 261);
-  --grid: oklch(0.281 0.036 261);
-  --input: oklch(0.315 0.038 261);
-  --ring: oklch(0.786 0.126 79.5);
+  --border: 0 0% 91%;
+  --grid: 0 0% 94%;
+  --input: 0 0% 85%;
+  --ring: 164 50% 18%;
 
-  --tier-sharp: oklch(0.714 0.153 20.5);
-  --tier-peak: oklch(0.786 0.126 79.5);
-  --tier-standard: oklch(0.72 0.11 235);
-  --tier-valley: oklch(0.803 0.153 163.5);
+  --tier-sharp: 355 100% 45%;
+  --tier-peak: 38 100% 49%;
+  --tier-standard: 182 33% 31%;
+  --tier-valley: 151 93% 22%;
+}
+
+/* Control-room theme — deep forest green (#0B1F18) with lime accent, for night
+   shifts and wall displays. */
+.dark {
+  --background: 159 48% 8%;
+  --foreground: 40 60% 97%;
+  --panel: 164 50% 12%;
+  --panel-raised: 164 42% 17%;
+  --muted: 164 42% 17%;
+  --muted-foreground: 150 12% 70%;
+
+  --primary: 88 100% 64%;
+  --primary-foreground: 159 48% 8%;
+  --secondary: 164 42% 17%;
+  --secondary-foreground: 40 60% 97%;
+  --accent: 88 100% 64%;
+  --accent-foreground: 159 48% 8%;
+
+  --live: 158 70% 50%;
+  --live-foreground: 159 48% 8%;
+  --warn: 38 95% 60%;
+  --warn-foreground: 159 48% 8%;
+  --fault: 359 100% 70%;
+  --fault-foreground: 159 48% 8%;
+  --idle: 150 10% 58%;
+
+  --border: 164 30% 22%;
+  --grid: 164 30% 17%;
+  --input: 164 30% 24%;
+  --ring: 88 100% 64%;
+
+  --tier-sharp: 359 100% 70%;
+  --tier-peak: 38 95% 60%;
+  --tier-standard: 182 45% 55%;
+  --tier-valley: 158 70% 50%;
 }
 
 @layer base {
@@ -92,6 +150,10 @@
   }
 
   html {
+    color-scheme: light;
+  }
+
+  html.dark {
     color-scheme: dark;
   }
 
@@ -105,11 +167,23 @@
   h1,
   h2,
   h3 {
+    font-family: var(--font-display);
     letter-spacing: -0.01em;
+  }
+
+  /* Figures are the hero on every dashboard: always tabular. */
+  table,
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 }
 
-/* Instrument face: any measured value. */
+/* Instrument face: any measured value — kW, kWh, RWF, SOC, °C. */
 @utility metric {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -140,12 +214,13 @@
 }
 
 @utility glow-live {
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--live) 40%, transparent),
-    0 0 18px -4px color-mix(in oklab, var(--live) 45%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, hsl(var(--live)) 40%, transparent),
+    0 0 18px -4px color-mix(in oklab, hsl(var(--live)) 45%, transparent);
 }
 
 @utility glow-gold {
-  box-shadow: 0 0 22px -8px color-mix(in oklab, var(--primary) 60%, transparent);
+  box-shadow: 0 0 22px -8px color-mix(in oklab, hsl(var(--primary)) 60%, transparent);
 }
 
 @keyframes uza-pulse {
@@ -162,14 +237,47 @@
   animation: uza-pulse 1.6s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: var(--color-background);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--panel-raised);
+  background: var(--color-panel-raised);
   border-radius: 6px;
+}
+
+/* Leaflet map pins — measured connector state, never assumed */
+.uza-pin {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid hsl(var(--background));
+  box-shadow: 0 0 0 1px hsl(var(--border));
+}
+.uza-pin-live {
+  background: hsl(var(--live));
+}
+.uza-pin-warn {
+  background: hsl(var(--warn));
+}
+.uza-pin-idle {
+  background: hsl(var(--muted-foreground));
+}
+.leaflet-container {
+  background: hsl(var(--panel));
+  font-family: inherit;
 }

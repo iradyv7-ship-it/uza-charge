@@ -12,10 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDriverRouteImport } from './routes/_authenticated/driver'
+import { Route as AuthenticatedMoneyRouteImport } from './routes/_authenticated/money'
 import { Route as AuthenticatedOpsRouteImport } from './routes/_authenticated/ops'
+import { Route as AuthenticatedOwnerRouteImport } from './routes/_authenticated/owner'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as ApiPublicAirtelCallbackRouteImport } from './routes/api/public/airtel-callback'
+import { Route as ApiPublicMomoCallbackRouteImport } from './routes/api/public/momo-callback'
 import { Route as ApiPublicHooksSimulatorTickRouteImport } from './routes/api/public/hooks/simulator-tick'
+import { Route as ApiPublicOcppIdentityRouteImport } from './routes/api/public/ocpp/$identity'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,6 +39,16 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -41,10 +59,35 @@ const AuthenticatedDriverRoute = AuthenticatedDriverRouteImport.update({
   path: '/driver',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMoneyRoute = AuthenticatedMoneyRouteImport.update({
+  id: '/money',
+  path: '/money',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedOpsRoute = AuthenticatedOpsRouteImport.update({
   id: '/ops',
   path: '/ops',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOwnerRoute = AuthenticatedOwnerRouteImport.update({
+  id: '/owner',
+  path: '/owner',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiPublicAirtelCallbackRoute = ApiPublicAirtelCallbackRouteImport.update({
+  id: '/api/public/airtel-callback',
+  path: '/api/public/airtel-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMomoCallbackRoute = ApiPublicMomoCallbackRouteImport.update({
+  id: '/api/public/momo-callback',
+  path: '/api/public/momo-callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksSimulatorTickRoute =
   ApiPublicHooksSimulatorTickRouteImport.update({
@@ -52,66 +95,124 @@ const ApiPublicHooksSimulatorTickRoute =
     path: '/api/public/hooks/simulator-tick',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicOcppIdentityRoute = ApiPublicOcppIdentityRouteImport.update({
+  id: '/api/public/ocpp/$identity',
+  path: '/api/public/ocpp/$identity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/driver': typeof AuthenticatedDriverRoute
+  '/money': typeof AuthenticatedMoneyRoute
   '/ops': typeof AuthenticatedOpsRoute
+  '/owner': typeof AuthenticatedOwnerRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/api/public/airtel-callback': typeof ApiPublicAirtelCallbackRoute
+  '/api/public/momo-callback': typeof ApiPublicMomoCallbackRoute
   '/api/public/hooks/simulator-tick': typeof ApiPublicHooksSimulatorTickRoute
+  '/api/public/ocpp/$identity': typeof ApiPublicOcppIdentityRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/driver': typeof AuthenticatedDriverRoute
+  '/money': typeof AuthenticatedMoneyRoute
   '/ops': typeof AuthenticatedOpsRoute
+  '/owner': typeof AuthenticatedOwnerRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/api/public/airtel-callback': typeof ApiPublicAirtelCallbackRoute
+  '/api/public/momo-callback': typeof ApiPublicMomoCallbackRoute
   '/api/public/hooks/simulator-tick': typeof ApiPublicHooksSimulatorTickRoute
+  '/api/public/ocpp/$identity': typeof ApiPublicOcppIdentityRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/driver': typeof AuthenticatedDriverRoute
+  '/_authenticated/money': typeof AuthenticatedMoneyRoute
   '/_authenticated/ops': typeof AuthenticatedOpsRoute
+  '/_authenticated/owner': typeof AuthenticatedOwnerRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/api/public/airtel-callback': typeof ApiPublicAirtelCallbackRoute
+  '/api/public/momo-callback': typeof ApiPublicMomoCallbackRoute
   '/api/public/hooks/simulator-tick': typeof ApiPublicHooksSimulatorTickRoute
+  '/api/public/ocpp/$identity': typeof ApiPublicOcppIdentityRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/reset-password'
+    | '/sitemap.xml'
     | '/admin'
     | '/driver'
+    | '/money'
     | '/ops'
+    | '/owner'
+    | '/reports'
+    | '/api/public/airtel-callback'
+    | '/api/public/momo-callback'
     | '/api/public/hooks/simulator-tick'
+    | '/api/public/ocpp/$identity'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/reset-password'
+    | '/sitemap.xml'
     | '/admin'
     | '/driver'
+    | '/money'
     | '/ops'
+    | '/owner'
+    | '/reports'
+    | '/api/public/airtel-callback'
+    | '/api/public/momo-callback'
     | '/api/public/hooks/simulator-tick'
+    | '/api/public/ocpp/$identity'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/reset-password'
+    | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/driver'
+    | '/_authenticated/money'
     | '/_authenticated/ops'
+    | '/_authenticated/owner'
+    | '/_authenticated/reports'
+    | '/api/public/airtel-callback'
+    | '/api/public/momo-callback'
     | '/api/public/hooks/simulator-tick'
+    | '/api/public/ocpp/$identity'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiPublicAirtelCallbackRoute: typeof ApiPublicAirtelCallbackRoute
+  ApiPublicMomoCallbackRoute: typeof ApiPublicMomoCallbackRoute
   ApiPublicHooksSimulatorTickRoute: typeof ApiPublicHooksSimulatorTickRoute
+  ApiPublicOcppIdentityRoute: typeof ApiPublicOcppIdentityRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,6 +238,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -151,12 +266,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDriverRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/money': {
+      id: '/_authenticated/money'
+      path: '/money'
+      fullPath: '/money'
+      preLoaderRoute: typeof AuthenticatedMoneyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ops': {
       id: '/_authenticated/ops'
       path: '/ops'
       fullPath: '/ops'
       preLoaderRoute: typeof AuthenticatedOpsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/owner': {
+      id: '/_authenticated/owner'
+      path: '/owner'
+      fullPath: '/owner'
+      preLoaderRoute: typeof AuthenticatedOwnerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/airtel-callback': {
+      id: '/api/public/airtel-callback'
+      path: '/api/public/airtel-callback'
+      fullPath: '/api/public/airtel-callback'
+      preLoaderRoute: typeof ApiPublicAirtelCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/momo-callback': {
+      id: '/api/public/momo-callback'
+      path: '/api/public/momo-callback'
+      fullPath: '/api/public/momo-callback'
+      preLoaderRoute: typeof ApiPublicMomoCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/simulator-tick': {
       id: '/api/public/hooks/simulator-tick'
@@ -165,19 +315,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSimulatorTickRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ocpp/$identity': {
+      id: '/api/public/ocpp/$identity'
+      path: '/api/public/ocpp/$identity'
+      fullPath: '/api/public/ocpp/$identity'
+      preLoaderRoute: typeof ApiPublicOcppIdentityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDriverRoute: typeof AuthenticatedDriverRoute
+  AuthenticatedMoneyRoute: typeof AuthenticatedMoneyRoute
   AuthenticatedOpsRoute: typeof AuthenticatedOpsRoute
+  AuthenticatedOwnerRoute: typeof AuthenticatedOwnerRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDriverRoute: AuthenticatedDriverRoute,
+  AuthenticatedMoneyRoute: AuthenticatedMoneyRoute,
   AuthenticatedOpsRoute: AuthenticatedOpsRoute,
+  AuthenticatedOwnerRoute: AuthenticatedOwnerRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -187,8 +350,23 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiPublicAirtelCallbackRoute: ApiPublicAirtelCallbackRoute,
+  ApiPublicMomoCallbackRoute: ApiPublicMomoCallbackRoute,
   ApiPublicHooksSimulatorTickRoute: ApiPublicHooksSimulatorTickRoute,
+  ApiPublicOcppIdentityRoute: ApiPublicOcppIdentityRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

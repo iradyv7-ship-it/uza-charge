@@ -111,6 +111,10 @@ export const saveCharger = createServerFn({ method: "POST" })
           ...(data.id ? { id: data.id } : {}),
           station_id: data.station_id,
           serial: data.serial,
+          // The OCPP identity a charge point presents on connect. Defaults to
+          // the serial so a commissioned pile can dial in immediately.
+          ocpp_identity: data.serial,
+
           vendor: data.vendor ?? null,
           model: data.model ?? null,
           connector_count: data.connector_count,
@@ -200,4 +204,50 @@ export const deleteRecord = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from(data.table).delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Reprice finished sessions from their own meter readings.
+ *
+ * Sessions recorded before the tariff-version model existed carry no money at
+ * all, which made owner revenue read as zero. This walks completed sessions
+ * that have never been priced (or all of them, when `all` is set), applies the
+ * tariff in force when each one started and writes an itemised receipt.
+ */
+export const repriceSessions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ all: z.boolean().optional(), limit: z.number().int().min(1).max(2000).optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Forbidden: UZA admin role required");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { settleSession } = await import("./settlement.server");
+
+    let query = supabaseAdmin
+      .from("sessions")
+      .select("id")
+      .eq("status", "completed")
+      .order("started_at", { ascending: true })
+      .limit(data.limit ?? 1000);
+    if (!data.all) query = query.eq("total_minor", 0);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+
+    let priced = 0;
+    let totalMinor = 0;
+    for (const row of rows ?? []) {
+      const result = await settleSession(supabaseAdmin as never, (row as { id: string }).id);
+      if (result) {
+        priced += 1;
+        totalMinor += result.charge.totalMinor;
+      }
+    }
+    return { priced, totalMinor };
   });

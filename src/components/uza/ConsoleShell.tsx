@@ -25,6 +25,8 @@ export function UzaMark({ compact = false }: { compact?: boolean }) {
 const NAV = [
   { to: "/", label: "Network" },
   { to: "/ops", label: "Operator" },
+  { to: "/owner", label: "Owner portal" },
+  { to: "/reports", label: "Reports" },
   { to: "/admin", label: "Admin" },
   { to: "/driver", label: "Driver app" },
 ] as const;

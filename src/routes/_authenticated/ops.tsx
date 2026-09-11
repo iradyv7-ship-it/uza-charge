@@ -8,14 +8,16 @@ import {
   fetchFleetKpis,
   fetchLiveSessions,
   fetchPayments,
-  fetchStations,
   fetchTariffs,
   type LiveSession,
-  type StationRow,
 } from "@/lib/queries";
+import { fetchControlRoom, sweepLiveness } from "@/lib/control-room.functions";
+import { StationHealthGrid, UptimeHeadline } from "@/components/uza/UptimeGrid";
 import { useLive, useNow, useSimulatorPulse } from "@/hooks/useUza";
 import { queueCommand, settlePayment } from "@/lib/ops.functions";
 import { ConsoleShell } from "@/components/uza/ConsoleShell";
+import { RegulatorExports } from "@/components/uza/RegulatorExports";
+
 import {
   Btn,
   Channel,
@@ -68,24 +70,46 @@ function OperatorConsole() {
   useSimulatorPulse();
   useLive(
     ["sessions", "meter_values", "connectors", "chargers", "payments", "faults", "charger_commands"],
-    [["kpis"], ["live-sessions"], ["stations"], ["payments"], ["faults"], ["commands"]],
+    [
+      ["kpis"],
+      ["live-sessions"],
+      ["control-room"],
+      ["payments"],
+      ["faults"],
+      ["commands"],
+    ],
   );
 
   const [tab, setTab] = useState<Tab>("live");
   const kpis = useQuery({ queryKey: ["kpis"], queryFn: fetchFleetKpis, refetchInterval: 15000 });
+  const control = useControlRoom();
   const k = kpis.data;
+  const snapshot = control.data;
 
   return (
     <ConsoleShell
       title="Operator console"
       subtitle="Realtime fleet control · commands go out through charger_commands only"
     >
+      {/* Uptime leads: availability is the product. */}
+      <div className="mb-4">
+        <UptimeHeadline
+          report={snapshot?.network ?? { kind: "never_connected" }}
+          windowHours={snapshot?.windowHours ?? 48}
+          minObservationHours={snapshot?.targets.minObservationHours ?? 24}
+        />
+      </div>
+
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
-          label="Chargers online"
-          value={`${k?.chargersOnline ?? 0}/${k?.chargersTotal ?? 0}`}
+          label="Charge points online"
+          value={`${snapshot?.totals.online ?? k?.chargersOnline ?? 0}/${
+            snapshot?.totals.chargePoints ?? k?.chargersTotal ?? 0
+          }`}
           tone="live"
-          foot={`${k?.chargersFaulted ?? 0} faulted · ${k?.openFaults ?? 0} open faults`}
+          foot={`${snapshot?.totals.faulted ?? 0} faulted · ${
+            snapshot?.totals.neverConnected ?? 0
+          } never connected · ${snapshot?.totals.openFaults ?? 0} open faults`}
         />
         <StatTile
           label="Live sessions"
@@ -96,6 +120,7 @@ function OperatorConsole() {
         <StatTile label="Energy today" value={KWH(k?.energyToday ?? 0, 1)} unit="kWh" />
         <StatTile label="Revenue today" value={RWF(k?.revenueToday ?? 0)} unit="RWF" tone="gold" />
       </div>
+
 
       <div className="mb-5 flex flex-wrap gap-1 border-b border-border pb-2">
         {(
@@ -124,7 +149,12 @@ function OperatorConsole() {
       {tab === "live" ? <LiveMonitor /> : null}
       {tab === "health" ? <HealthView /> : null}
       {tab === "tariffs" ? <TariffView /> : null}
-      {tab === "settlement" ? <SettlementView /> : null}
+      {tab === "settlement" ? (
+        <div className="space-y-6">
+          <SettlementView />
+          <RegulatorExports scopeLabel="Managed network" />
+        </div>
+      ) : null}
     </ConsoleShell>
   );
 }
@@ -198,9 +228,19 @@ function LiveMonitor() {
   );
 }
 
+/** Measured availability for the caller's own sites only (RLS by owner). */
+function useControlRoom() {
+  const fetch = useServerFn(fetchControlRoom);
+  return useQuery({
+    queryKey: ["control-room"],
+    queryFn: () => fetch({ data: { windowHours: 48 } }),
+    refetchInterval: 20000,
+  });
+}
+
 function HealthView() {
   const queryClient = useQueryClient();
-  const stations = useQuery({ queryKey: ["stations"], queryFn: fetchStations });
+  const control = useControlRoom();
   const faults = useQuery({ queryKey: ["faults"], queryFn: fetchFaults });
   const commands = useQuery({ queryKey: ["commands"], queryFn: fetchCommandLog });
 
@@ -208,75 +248,63 @@ function HealthView() {
     mutationFn: useServerFn(queueCommand),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["commands"] }),
   });
+  const sweep = useMutation({
+    mutationFn: useServerFn(sweepLiveness),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["control-room"] }),
+  });
 
   return (
     <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
       <div className="flex flex-col gap-4">
-        {(stations.data ?? []).map((station: StationRow) => (
-          <Panel key={station.id}>
-            <PanelHeader
-              title={station.name}
-              hint={`${station.area ?? "Kigali"} · ${station.kind} · ${station.operators?.name ?? "—"}`}
-            />
-            <div className="divide-y divide-border">
-              {station.chargers.map((charger) => {
-                const heartbeatAge = charger.last_heartbeat
-                  ? Math.round((Date.now() - new Date(charger.last_heartbeat).getTime()) / 1000)
-                  : null;
-                return (
-                  <div key={charger.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <span className="metric text-sm">{charger.serial}</span>
-                      <Channel>
-                        {charger.vendor ?? "—"} {charger.model ?? ""} · fw{" "}
-                        {charger.firmware_version ?? "—"} · cap {charger.max_output_pct}% ·{" "}
-                        {heartbeatAge === null ? "no heartbeat" : `heartbeat ${heartbeatAge}s ago`}
-                      </Channel>
-                    </div>
-                    <StatusPill status={charger.status} toneMap={CHARGER_TONE} />
-                    <div className="flex gap-1.5">
-                      <Btn
-                        size="sm"
-                        disabled={send.isPending}
-                        onClick={() =>
-                          send.mutate({ data: { chargerId: charger.id, type: "reset", payload: {} } })
-                        }
-                      >
-                        Reboot
-                      </Btn>
-                      <Btn
-                        size="sm"
-                        disabled={send.isPending}
-                        onClick={() =>
-                          send.mutate({ data: { chargerId: charger.id, type: "unlock", payload: {} } })
-                        }
-                      >
-                        Unlock
-                      </Btn>
-                      <Btn
-                        size="sm"
-                        variant="ghost"
-                        disabled={send.isPending}
-                        onClick={() =>
-                          send.mutate({
-                            data: {
-                              chargerId: charger.id,
-                              type: "set_max_power",
-                              payload: { max_output_pct: charger.max_output_pct >= 100 ? 70 : 100 },
-                            },
-                          })
-                        }
-                      >
-                        {charger.max_output_pct >= 100 ? "Throttle 70%" : "Full power"}
-                      </Btn>
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Channel>
+            Availability and utilisation measured from OCPP status history · each pile is tracked
+            individually
+          </Channel>
+          <Btn size="sm" variant="ghost" disabled={sweep.isPending} onClick={() => sweep.mutate({})}>
+            {sweep.isPending ? "Sweeping…" : "Sweep liveness"}
+          </Btn>
+        </div>
+
+        <StationHealthGrid
+          stations={control.data?.stations ?? []}
+          renderCommands={(cp) => (
+            <div className="flex gap-1.5">
+              <Btn
+                size="sm"
+                disabled={send.isPending}
+                onClick={() => send.mutate({ data: { chargerId: cp.id, type: "reset", payload: {} } })}
+              >
+                Reboot
+              </Btn>
+              <Btn
+                size="sm"
+                disabled={send.isPending}
+                onClick={() => send.mutate({ data: { chargerId: cp.id, type: "unlock", payload: {} } })}
+              >
+                Unlock
+              </Btn>
+              <Btn
+                size="sm"
+                variant="ghost"
+                disabled={send.isPending}
+                onClick={() =>
+                  send.mutate({
+                    data: {
+                      chargerId: cp.id,
+                      type: "set_max_power",
+                      payload: { max_output_pct: cp.maxOutputPct >= 100 ? 70 : 100 },
+                    },
+                  })
+                }
+              >
+                {cp.maxOutputPct >= 100 ? "Throttle 70%" : "Full power"}
+              </Btn>
             </div>
-          </Panel>
-        ))}
+          )}
+        />
       </div>
+
 
       <div className="flex flex-col gap-4">
         <Panel>

@@ -106,9 +106,12 @@ export function LiveDot({ tone = "live" }: { tone?: "live" | "fault" | "idle" | 
 export function StatusPill({
   status,
   toneMap,
+  label,
 }: {
   status: string;
   toneMap: Record<string, string>;
+  /** Translated text to show instead of the raw status key. */
+  label?: string | undefined;
 }) {
   return (
     <span
@@ -128,7 +131,7 @@ export function StatusPill({
                 : "idle"
         }
       />
-      {status}
+      {label ?? status}
     </span>
   );
 }
