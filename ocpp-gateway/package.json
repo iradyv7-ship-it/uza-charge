@@ -1,0 +1,19 @@
+{
+  "name": "uza-ocpp-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "UZA Charge Network — OCPP 1.6-J WebSocket gateway. Owns charger sockets; the API owns the database.",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch src/server.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}
