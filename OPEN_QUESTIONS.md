@@ -121,4 +121,15 @@ Carried from `roadmap.md`, unaffected by this document set:
 
 ---
 
+## Q-09 — Decisions raised by the competitive benchmark (Section 34) · OPEN
+
+Opened **25 October 2026**. Each item is a founder decision; the reversible default is what will be built if work starts before an answer.
+
+1. **Commissioning sessions (A-14).** The benchmark offers "test mode: charge without payment". §6.7 forbids free, untracked transactions. Proposal: a time-boxed (≤ 24 h) per-charger commissioning mode, owner-admin enabled, every session priced at zero with reason `COMMISSIONING`, ledgered at zero, excluded from revenue and uptime. *Default until decided:* not built; commissioning uses a small real MoMo payment as §17.6 says.
+2. **Selling the white-label product before Phase 4.** §20 places the first paid white-label customer in Phase 4. Answering the vendor's offer now means demonstrating a branded demo network (a Phase 2A gate item) and selling on it. Confirm that demos and letters of intent may start in Phase 1–2A while the paid launch stays gated. *Default:* build the demo network; make no paid white-label commitment.
+3. **Store-published app (A-21).** Confirm whether the store app is a paid add-on (proposed) and whether an iOS build is in scope at all. *Default:* PWA only.
+4. **Pricing against the benchmark (D-02, D-03, D-13).** Vendor: USD 1,000–5,000 once + USD 1,500 / year for ≤ 300 stations. Proposal in §34.7: no setup fee for the branded web app with the Network edition. *Default:* prices stay `null`.
+5. **Staff sign-in method.** Rule 18 makes phone + SMS OTP primary for everyone; the benchmark and many business buyers expect login ID/email + password for staff. Proposal: staff sign in with phone + OTP or email + password, always with a second factor (§4); drivers stay password-free. *Default:* phone + OTP with second factor for staff.
+6. **Data-residency claim (§34.6).** Verify Law No 058/2021's conditions for storing personal data outside Rwanda (NCSA) before using it against offshore-hosted competitors. · BLOCKED on legal review.
+
 *Add an entry whenever the specification and the code disagree, or an outside fact is missing. Record the arrival of each piece of evidence here and set the value's `source`, reviewer and effective date in the configuration registry.*

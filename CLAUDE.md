@@ -31,6 +31,7 @@ This file is the **core**. Load it in every session and every sprint. It contain
 | `docs/13-configuration.md` | Versioned configuration and decision provenance | 19.5 |
 | `docs/14-delivery-decisions-tests.md` | Phases and proof gates, founder decisions, release test scenarios, sources and handover | 20, 21 (incl. former 33.1), 32.3, 33.2–33.3 |
 | `docs/15-first-sprint.md` | First sprint prompt (copy into Claude Code) | 23 |
+| `docs/16-benchmark-competitive-offer.md` | Competitive benchmark (hosted CPMS, Oct 2026), gap register A-1–A-21, the sellable working model and positioning | 34 |
 | `src/config/policy.ts` | Typed configuration defaults with status, unit, scope and source; v1.1 key migration map; production guards | 19.5 |
 | `docs/evidence/` | Source documents for `VERIFIED_EXTERNAL` rules (start with the RURA regulation PDF) | 15 |
 

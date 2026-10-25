@@ -2,6 +2,9 @@
 
 *Core: [`../CLAUDE.md`](../CLAUDE.md). Version changes record scope, reason, reviewer and evidence (§33.3).*
 
+## v2.1 addendum — 25 October 2026
+**Addition:** new module `docs/16-benchmark-competitive-offer.md` (Section 34), written from a hosted Chinese CPMS feature list (`docs/incoming/Benchmark.xlsx`, 82 features) and that vendor's pricing offer. Records a feature-by-feature comparison against the spec, the rebuild and the prototype; 21 additions (A-1–A-21), each phase-gated under Section 20; seven deliberate differences; the definition of a sellable working model; Rwanda positioning and pricing reference for D-02/D-03/D-13. No existing rule changed. New open question Q-09. Reviewer: founder (pending).
+
 ## v2.1 — 7 October 2026
 Base: v2.0 (7 Oct 2026). All v2.0 content retained unless listed here.
 
