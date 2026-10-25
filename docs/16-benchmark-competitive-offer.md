@@ -93,10 +93,67 @@ These are arguments to verify and evidence before they go into sales material (�
 - **Mixed-brand estates** — any OCPP 1.6J charger, with a published compatibility directory and evidence levels, not "all EU/China/US standard devices".
 - **Web-first by default** — scan-and-pay in the browser is our base product, not a USD 1,000 add-on; the store app (A-21) is the paid extra.
 
-### 34.7 Pricing reference for D-02, D-03 and D-13
+### 34.7 Pricing for market penetration — analysis and proposal for D-02, D-03 and D-13
 
-The benchmark is a reference point for the founder's open pricing decisions. **No price is decided here.**
+The benchmark is a reference point for the founder's open pricing decisions. **No price is decided here**: every figure below is `PROPOSED`, and every input is an assumption to verify before it appears in a quote (§31.2 price from real costs, §31.3 evidence register). The arithmetic is reproducible from the assumptions listed.
 
-- Vendor software cost to an operator with 300 stations: USD 1,000–5,000 once + USD 1,500 / year, excluding payment fees, support, compliance work and staff time.
-- Our editions (§17.1) price per connector and/or as a share of transactions. To be comparable in a sales conversation, every quote should state the **total yearly cost for the same estate**, including what the operator would otherwise spend on compliance reporting, reconciliation and settlement.
-- Proposed (for founder review): offer the **branded web driver app with the Network edition at no setup fee**, and charge setup only for the store-published app (A-21), so our entry price sits at or below the vendor's H5 package.
+#### 34.7.1 What the vendor's offer really costs a Rwandan operator
+
+The vendor charges **per customer, not per station**: USD 1,000 (web) or 5,000 (store app) once, then USD 1,500 a year for up to 300 stations. That is cheap for a large estate and expensive for a small one — and Rwanda's operators today are overwhelmingly small: a hotel, a fuel station, a mall or a fleet with one to five chargers.
+
+Assumptions: USD 1 = RWF 1,450 (verify against the BNR rate on the day); a station has 2 guns; an early-market DC gun in Kigali sells 60 kWh a day at RWF 370 per kWh (energy + service), so **RWF 666,000 of charging per gun per month**, RWF 1.33 M per station.
+
+| Stations | Vendor web, year 1 | Vendor web, year 2+ | Vendor app, year 1 | Licence cost per station, vendor web year 1 |
+|---|---|---|---|---|
+| 1 | RWF 3,625,000 | RWF 2,175,000 | RWF 9,425,000 | RWF 3,625,000 |
+| 5 | RWF 3,625,000 | RWF 2,175,000 | RWF 9,425,000 | RWF 725,000 |
+| 25 | RWF 3,625,000 | RWF 2,175,000 | RWF 9,425,000 | RWF 145,000 |
+
+And the vendor's figure is the licence only. It excludes the payment integration beyond "one payment method", local hosting (§5.5 data residency), RURA reporting (§15), owner settlement and payouts (§8.5), Kinyarwanda beyond one language, and support in the operator's time zone. A one-station hotel pays RWF 3.6 M in year one before any of that — about **23% of its first-year charging revenue**. That operator is the market, and at that price most of them will keep the notebook and the MoMo SMS.
+
+#### 34.7.2 Principle: the operator pays when the operator earns
+
+In a market where utilisation is still low and uncertain, a fixed fee is a bet the operator is asked to make before a single car arrives. A share of revenue moves that risk to us, which is the point: **an idle charger costs its owner nothing, and our income grows only as the network grows.** That is what makes the product easy to say yes to.
+
+A pure percentage, though, overtakes the vendor's flat fee once an estate is big enough (at the assumptions above: from about 9 stations against the vendor's first year, 5 against later years). So the proposal switches to a flat fee at that size, priced at the vendor's level, and competes above it on what the vendor does not include.
+
+#### 34.7.3 Proposed price card (founder decision: D-02, D-03, D-13)
+
+| Plan | Who it is for | Price (`PROPOSED`) | Includes |
+|---|---|---|---|
+| **Pilot** | Any new owner | **Free for 3 months, up to 2 chargers** | Everything in Operate. Ends with a reminder, never a cut-off mid-session (§17.5) |
+| **Pay as you charge** (Operate, 1–5 stations) | Hotels, fuel stations, malls, small fleets | **2.5% of charging revenue collected through the platform, capped at RWF 25,000 per gun per month. No setup fee, no fixed fee.** | QR web app in the network's brand, MTN MoMo and Airtel Money, owner settlement and payouts, live view, maintenance console, reports, RURA compliance tracker, Kinyarwanda / English / French |
+| **Flat** (Operate, 6–25 stations) | Growing operators | **RWF 200,000 per month** for the whole estate | Same, plus priority support |
+| **Network** (Model D, white-label) | Organisations launching their own brand | **RWF 350,000 per month + RWF 2,000 per gun per month**; branded web app free; store-published app (A-21) RWF 3,000,000 once | Own brand, own payment accounts, own staff and owners, card programme, roaming |
+| **Monitor only** | Chargers paid through another system | RWF 8,000 per gun per month | Live view, alarms, reports, maintenance — no payments |
+| **Managed** (Model B) | Investors who want UZA to run it | 10–15% of revenue (D-03) | UZA runs the site |
+
+What these come to, from the same assumptions:
+
+| Stations | UZA, year 1 | Vendor web, year 1 | UZA as share of the operator's charging revenue |
+|---|---|---|---|
+| 1 (after the free pilot) | RWF 299,700 (9 paying months) | RWF 3,625,000 | 2.5% |
+| 1, full year | RWF 399,600 | RWF 3,625,000 | 2.5% |
+| 5 | RWF 1,998,000 | RWF 3,625,000 | 2.5% |
+| 6 | RWF 2,400,000 (Flat) | RWF 3,625,000 | 2.5% |
+| 25 | RWF 2,400,000 (Flat) | RWF 3,625,000 | 0.6% |
+| 25, year 2+ | RWF 2,400,000 | RWF 2,175,000 | 0.6% |
+
+The switch from Pay-as-you-charge to Flat at 6 stations is continuous (RWF 1.998 M → 2.4 M), so no owner is punished for adding a charger. From 6 to 25 stations the yearly cost is within about 10% of the vendor's licence after its first year, while including the payment rails, settlement and compliance work the vendor leaves to the operator.
+
+**Where we are honestly more expensive:** a Network customer with 50+ stations pays more than the vendor's USD 1,500 licence. The case there is total cost — payment integration, in-country hosting, compliance staff time, settlement — and it must be made with the operator's own numbers, not ours (§31.3).
+
+#### 34.7.4 Why the low entry price is sustainable
+
+- **The marginal cost of a gun is small.** The platform is multi-tenant (§17.2): one more gun is a few rows and one WebSocket. The costs that grow per gun — SMS codes, MoMo collection fees, support time — must be measured in the pilot and written into the commercial evidence register before the cap and the share are confirmed (§31.2). Collection fees charged by MTN and Airtel are passed through, never absorbed silently (D-05).
+- **Revenue follows the network.** At the assumptions above, 100 guns on Pay-as-you-charge bring in RWF 1.67 M a month. The same 100 guns on one flat licence would bring in less, and none of it in the first months, when owners are deciding.
+- **The free pilot sells the product better than a sales call.** An owner who has watched a month of their own sessions, settlements and uptime on their phone has the evidence §31.3 asks for.
+
+#### 34.7.5 What has to be true before these prices are quoted
+
+1. Founder decision on D-02, D-03 and D-13 (this table is the proposal).
+2. Verified USD/RWF rate and the operator's real kWh price (the 60 kWh/day assumption is the largest lever: at 30 kWh/day the 2.5% fee halves).
+3. VAT treatment of the platform fee checked with RRA, and whether the share is computed on gross or net of VAT.
+4. MoMo/Airtel collection and disbursement fees confirmed (Q-05) and who bears them (D-05).
+5. Per-gun cost to serve measured during the pilot.
+6. No quote states a price the platform cannot yet bill: platform invoicing (§17.5) is specified, not built.
