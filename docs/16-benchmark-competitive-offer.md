@@ -95,7 +95,9 @@ These are arguments to verify and evidence before they go into sales material (�
 
 ### 34.7 Pricing for market penetration — analysis and proposal for D-02, D-03 and D-13
 
-The benchmark is a reference point for the founder's open pricing decisions. **No price is decided here**: every figure below is `PROPOSED`, and every input is an assumption to verify before it appears in a quote (§31.2 price from real costs, §31.3 evidence register). The arithmetic is reproducible from the assumptions listed.
+> **Founder decision, 25 Oct 2026: prices are set in the admin panel, never in code.** What drivers pay is set by each owner on the owner portal's Prices page (built). What UZA charges operators — the card in §34.7.3 — is configuration with these figures as starting defaults, set by UZA in the platform admin (§13.6, §17.5; that screen is not built yet, so the values live in the `plans` table until it is). The figures stay `PROPOSED` defaults until confirmed in the commercial evidence register.
+
+The benchmark is a reference point for the founder's pricing decisions. Every figure below is a `PROPOSED` default, and every input is an assumption to verify before it appears in a quote (§31.2 price from real costs, §31.3 evidence register). The arithmetic is reproducible from the assumptions listed.
 
 #### 34.7.1 What the vendor's offer really costs a Rwandan operator
 
@@ -117,7 +119,7 @@ In a market where utilisation is still low and uncertain, a fixed fee is a bet t
 
 A pure percentage, though, overtakes the vendor's flat fee once an estate is big enough (at the assumptions above: from about 9 stations against the vendor's first year, 5 against later years). So the proposal switches to a flat fee at that size, priced at the vendor's level, and competes above it on what the vendor does not include.
 
-#### 34.7.3 Proposed price card (founder decision: D-02, D-03, D-13)
+#### 34.7.3 Proposed price card — starting defaults, set in the admin panel (D-02, D-03, D-13)
 
 | Plan | Who it is for | Price (`PROPOSED`) | Includes |
 |---|---|---|---|

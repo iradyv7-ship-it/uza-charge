@@ -1,6 +1,6 @@
 # Build report — the sellable working model (25 October 2026)
 
-*For whoever evaluates this work. It says what was asked, what was built, where it is, how it was proved, and what is still missing. Nothing here is pushed to GitHub: every change sits on a local branch, listed below, for review first.*
+*For whoever evaluates this work. It says what was asked, what was built, where it is, how it was proved, and what is still missing. Every change is on a branch of its repository on GitHub, with one pull request per repository for review before it reaches `main`.*
 
 **Asked for (founder, 25 Oct 2026):** use the Chinese hosted-CPMS benchmark (`docs/incoming/Benchmark.xlsx` and its USD 1,000–5,000 + 1,500/yr offer) to strengthen UZA Charge into a working model that can be sold to other operators in Rwanda — affordable enough for market penetration — by building the five steps proposed in `docs/16-benchmark-competitive-offer.md`: (1) charger onboarding, (2) admin management screens with search/filter/export, (3) maintenance console, (4) operations home and notifications, (5) real staff and driver sign-in. Keep frontend and backend strictly separate; keep the documentation easy to evaluate.
 
@@ -41,7 +41,9 @@ How the separation is enforced, not just intended: frontends have no database cl
 - Notifications derived from live state — offline, faulted, never connected, site cannot trade, site has no price, payout failed or waiting — critical first, critical ones cannot be muted; per-person read marks.
 - **Where:** API `src/operations/`.
 
-### Step 5 — Real sign-in (core rule 18, §4, §30.4)
+### Step 5 — Real sign-in (core rule 18, §4, §30.4) — **PILOT ONLY**
+
+> **Founder decision, 25 Oct 2026: this sign-in is for the pilot.** It is an interim sign-in, issued by the API itself, approved for pilot use only. Before general release, identity moves to UZA ID (the spine, D-01); the guards stay, and only `src/auth/auth-tokens.ts` plus the `staff_pins` and `auth_sessions` tables are replaced.
 - **Drivers:** phone number + SMS code. Charging by QR still needs no account.
 - **Staff:** phone + SMS code + six-digit PIN (two-step; guessable PINs refused; locks after 5 wrong tries; admin can reset). Roles are read from memberships on every request, so removing access takes effect immediately. 15-minute access tokens; refresh tokens rotate and a replayed one ends the session. Owner admins invite, list and remove staff by phone number; the last admin cannot be removed.
 - **Where:** API `src/auth/` and the four guards; frontends below.
@@ -88,9 +90,16 @@ How to repeat it: see `uza-charge-api/README.md` ("Develop", "Running on Postgre
 | Kinyarwanda review | All new strings written in both languages; not yet reviewed by a native speaker | Each app's i18n file names the strings to read first |
 | Test on a real phone and a printed label sheet | The browser test used desktop Chrome at phone size | Click through on a low-end Android on 3G; print one sheet of labels |
 
-## 6. Decisions waiting for the founder
+## 6. Founder decisions
 
-From `OPEN_QUESTIONS.md` Q-09 and `uza-charge-api/OPEN_QUESTIONS.md` Q-10: commissioning sessions; demoing the white-label product before Phase 4; store app as a paid extra and iOS scope; the price card in §34.7; staff email + password sign-in; whether the interim identity provider may serve a pilot; and when to push these branches to GitHub (the spec repo `uzacharge-master` is public).
+**Decided on 25 October 2026:**
+- **Sign-in is pilot-only.** The interim sign-in may serve the pilot. It is not the release identity system: before general release, identity moves to UZA ID (D-01). Every document that describes sign-in says so.
+- **Prices are set in the admin panel, never in code.**
+  - *What drivers pay:* each owner sets this themselves on the owner portal's **Prices** page. A simple price per kWh is the default; time of day is optional; every change is a new version published with confirmation. This is built and was tested in a browser.
+  - *What UZA charges operators:* the platform price card (§34.7) is configuration too. Its figures are starting defaults that UZA can change. The platform admin screen for setting them is specified (§13.6, §17.5) but not built yet; until it is, the values live in the `plans` table, not in code.
+- **Pushed to GitHub.** Each repo's branch is on its own repository, and the NOC console has a new private repository (`uza-charge-noc`). The spec branch is also on the public mirror `uzacharge-master`, as decided under Q-08.
+
+**Still open:** commissioning sessions; demoing the white-label product before Phase 4; the store app as a paid extra and iOS scope; staff email + password sign-in (Q-09).
 
 ## 7. Run it yourself
 
