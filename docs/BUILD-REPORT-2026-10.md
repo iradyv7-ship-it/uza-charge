@@ -4,6 +4,8 @@
 
 **Asked for (founder, 25 Oct 2026):** use the Chinese hosted-CPMS benchmark (`docs/incoming/Benchmark.xlsx` and its USD 1,000–5,000 + 1,500/yr offer) to strengthen UZA Charge into a working model that can be sold to other operators in Rwanda — affordable enough for market penetration — by building the five steps proposed in `docs/16-benchmark-competitive-offer.md`: (1) charger onboarding, (2) admin management screens with search/filter/export, (3) maintenance console, (4) operations home and notifications, (5) real staff and driver sign-in. Keep frontend and backend strictly separate; keep the documentation easy to evaluate.
 
+> **Update, 26 Oct 2026:** the overnight build (packages and pricing in the admin panel, payment rails, wallet and tap-and-go cards, compliance and reports, deployment, and the admin/owner/attendant/driver screens) is reported in [`BUILD-REPORT-2026-10-overnight.md`](BUILD-REPORT-2026-10-overnight.md). Those commits are local and not yet pushed.
+
 ---
 
 ## 1. Where everything is
