@@ -10,7 +10,8 @@ A founder decision never verifies a regulation (core §0 rule 3). `FOUNDER_DECID
 
 | File | Document | Status |
 |---|---|---|
-| `rura-011-2026.pdf` | Regulations No 011/ENERGY/RURA/2026 governing electric vehicle charging infrastructure and battery swapping stations. Board approval 23/06/2026; signed 29/06/2026 by the Chairperson of the Regulatory Board (Dr Carpophore Ntagungira); in force on signature per Art. 39. | **NOT YET IN THIS REPO** — the founder holds the text (§15 was written from it). Add the PDF before any RURA rule is relied on in production. |
+| `rura-011-2026.pdf` | Regulations No 011/ENERGY/RURA/2026 governing electric vehicle charging infrastructure and battery swapping stations. Board approval 23/06/2026; signed 29/06/2026 by the Chairperson of the Regulatory Board (Dr Carpophore Ntagungira); in force on signature per Art. 39. | **Stored 26 Oct 2026** (copied from `docs/incoming/`). Checked article by article against the API's RW-RURA-011-2026 pack on 26 Oct 2026. |
+| `evci-masterplan-2024.pdf` | Rwanda EV Charging Infrastructure Master Plan, Final Report, October 2024 (MININFRA / EU EDF, SOFRECO–IBC). Planning guidance, not law: Annex I of RURA 011/2026 requires public stations to comply with it. Where they differ (e.g. it says no RURA licence is needed), the 2026 regulation governs. | **Stored 26 Oct 2026.** |
 
 ## Still to obtain (each blocks the capability named, not the whole release)
 
