@@ -83,7 +83,6 @@ How to repeat it: see `uza-charge-api/README.md` ("Develop", "Running on Postgre
 | Real MTN MoMo / Airtel payments and payouts | Provider credentials not in hand | `AWAITING CREDENTIALS` everywhere; obtain sandbox keys |
 | SMS provider | Not chosen | Codes go to the API log in dev; production refuses to pretend |
 | Identity in UZA ID (spine) | Spine not reachable (D-01) | Interim provider; replace `auth-tokens.ts` + two tables |
-| Commissioning (free test) sessions | Founder decision Q-09.1 | Test with a small real payment, as §17.6 says |
 | Organisation picker for people with several organisations | `@uza/ui` cannot send `X-Owner-Id` without a change pushed to its GitHub repo | Push the shared-client change, then add a picker |
 | Platform invoicing, P&L, cost book, RRA EBM | Later phase | §17.5, §12.4 |
 | Real charger | None connected yet (§1.2) | Wicen unit on staging |
@@ -101,7 +100,15 @@ How to repeat it: see `uza-charge-api/README.md` ("Develop", "Running on Postgre
   - *What UZA charges operators:* the platform price card (§34.7) is configuration too. Its figures are starting defaults that UZA can change. The platform admin screen for setting them is specified (§13.6, §17.5) but not built yet; until it is, the values live in the `plans` table, not in code.
 - **Pushed to GitHub.** Each repo's branch is on its own repository, and the NOC console has a new private repository (`uza-charge-noc`). The spec branch is also on the public mirror `uzacharge-master`, as decided under Q-08.
 
-**Still open:** commissioning sessions; demoing the white-label product before Phase 4; the store app as a paid extra and iOS scope; staff email + password sign-in (Q-09).
+**Decided on 27 October 2026:**
+- **Commissioning sessions follow §34.4 as proposed** (resolves Q-09.1/Q-09.2). An owner admin or the NOC opens a
+  window on one charger for at most 24 hours; test charges in it are normal sessions priced at zero, tagged
+  `COMMISSIONING`, kept out of revenue and settlement, and the window's time counts as out of service. Drivers cannot
+  pay to charge on that charger meanwhile. The alternative of marking a charge as a test after the fact was rejected,
+  because it would let a paid charge drop out of settlement. Built — see section 8.
+
+**Still open:** demoing the white-label product before Phase 4; the store app as a paid extra and iOS scope; staff
+email + password sign-in (Q-09).
 
 ## 7. Run it yourself
 
@@ -118,3 +125,37 @@ PORT=3017 API_STORE=memory ALLOW_MEMORY_STORE=true ALLOW_DEV_VERIFICATION_CODE=t
 # Or everything, checked automatically (85 checks):
 API_PORT=3017 bash scripts/e2e.sh        # in uza-charge-api
 ```
+
+## 8. Addendum, 27 October 2026 — the benchmark walkthrough videos and what was added
+
+Two screen recordings arrived on 27 October (`docs/incoming/WhatsApp Video 2026-10-27 …`, not committed: third-party
+material): the GCSS "Global Charge" driver app walkthrough and its CPO admin panel. Every screen was compared with
+the five apps.
+
+**Already ours, usually with more:** QR scan & charge, wallet top-up, charging cards, order history and receipts with
+the tariff breakdown, appeals (our complaints, with the RURA Art. 28 route on the receipt), language switch, help,
+the station map, per-owner prices with time-of-day, station creation with a map point, charger onboarding with a
+one-time password and per-gun QR labels, connector status, online status, the maintenance console.
+
+**Missing, now built (all tested, unit + screen + e2e + live smoke):**
+
+| From the videos | What was built | Where |
+|---|---|---|
+| Admin "Test Mode: Enable/Disable" | Commissioning windows (A-14, the safe version): open ≤24 h with a reason, free test charges from the panel or at the charger, priced at zero everywhere (stop, live cost, receipt, reports), out of revenue/settlement, paid starts and card taps refused, out of service for uptime, audited | API `src/commissioning/`; owner and NOC "Test mode" tab |
+| Live "0.00 V / 0.00 A" on the charging screen | Voltage and current from MeterValues (display only, never billed; Unknown with a reason, never 0) | API measurands; driver live screen; simulator sends them |
+| Order details "Start SoC / End SoC" | Battery level at start and end on the receipt, and "started at N%" on the live screen | API receipts; driver app |
+| Profile "Delete Account" (an app-store requirement) | `POST /driver/account/delete`: erases name, number and sign-in, keeps receipts for retention, refused while money, a charge, a booking or a card is at stake | API `src/driver/account.service.ts`; driver Account page |
+| Station "Map Visibility: Visible / Hidden" | Owners show or hide a site on the drivers' map (licence and compliance rules unchanged) | API site patch; owner site form |
+
+**Seen and deliberately not copied:** e-bike device and station types (not in the v2.1 scope; record as a later
+module if the founder wants the two-wheeler market); a "power loss rate" multiplier on tariffs (it bills drivers for
+losses the meter did not measure, which core rule 10 does not allow; losses belong in the owner's P&L); email +
+password as the driver sign-up (rule 18: phone + SMS code); Apple Pay / Stripe cards as the primary rail (rule 17);
+a "server region" picker (one network, one data residency, §5.5).
+
+**Found by the live smoke run:** a test charge's receipt re-priced from the tariff and printed a non-zero energy cost.
+Fixed at the root: `pinnedTariff` now returns the zero-priced tariff for a commissioning session, so every place that
+prices a session agrees.
+
+**Demo:** `bash scripts/demo.sh` in `uza-charge-api` runs everything on one laptop; the walk-through and the
+sign-in numbers are in `docs/DEMO-2026-10-28.md`.

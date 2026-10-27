@@ -2,6 +2,9 @@
 
 *Core: [`../CLAUDE.md`](../CLAUDE.md). Version changes record scope, reason, reviewer and evidence (§33.3).*
 
+## v2.1 addendum — 27 October 2026
+**Decision:** A-14 commissioning sessions decided as proposed in 34.4 (Q-09.2), with one precision: the window's time is counted as out of service for the RURA uptime figure rather than dropped from the period, because RURA has accepted no exclusions. Recorded in `16-benchmark-competitive-offer.md` (A-14 row and 34.4) and `BUILD-REPORT-2026-10.md` §6 and §8. **Addition:** `BUILD-REPORT-2026-10.md` §8 compares the GCSS driver-app and CPO-panel walkthrough videos with the five apps; `DEMO-2026-10-28.md` is the demo guide. No other rule changed. Reviewer: founder (decision given 27 Oct 2026).
+
 ## v2.1 addendum — 25 October 2026
 **Addition:** new module `docs/16-benchmark-competitive-offer.md` (Section 34), written from a hosted Chinese CPMS feature list (`docs/incoming/Benchmark.xlsx`, 82 features) and that vendor's pricing offer. Records a feature-by-feature comparison against the spec, the rebuild and the prototype; 21 additions (A-1–A-21), each phase-gated under Section 20; seven deliberate differences; the definition of a sellable working model; Rwanda positioning and pricing reference for D-02/D-03/D-13. No existing rule changed. New open question Q-09. Reviewer: founder (pending).
 
