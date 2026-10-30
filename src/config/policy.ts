@@ -1,482 +1,1154 @@
 /**
- * UZA CHARGE NETWORK — commercial policy constants.
+ * UZA CHARGE — versioned configuration seed (master build prompt v2.1, §19.5).
  *
- * THE SINGLE SOURCE OF TRUTH. No business number may appear as a literal
- * anywhere else in the codebase. All money maths runs through the pure
- * functions in `src/lib/pricing.ts`.
+ * See `docs/13-configuration.md` for the governing rules. In short:
  *
- * Every constant carries a status:
- *   CONFIRMED — signed off by UZA leadership, with the decision date.
- *   ASSUMED   — placeholder pending sign-off. Surfaced here deliberately so it
- *               can be reviewed, never buried in a component.
+ *   - This file holds DEFAULTS, TYPES, STATUSES and VALIDATION. Production
+ *     values live in approved, versioned configuration records; resolution
+ *     order is platform safety -> country/regulatory pack -> network ->
+ *     contract/owner -> permitted site override.
+ *   - `null` means UNKNOWN, never zero. A feature whose key is null stays
+ *     disabled and shows a setup task.
+ *   - Money keys are currency-neutral `*_AMOUNT` with an explicit currency.
+ *   - A value may be `VERIFIED_EXTERNAL` only if `source` names a document in
+ *     `docs/evidence/`. A founder decision never verifies a regulation.
+ *   - `PENDING_VERIFICATION` never drives production behaviour.
+ *   - Overrides cannot weaken a value marked `mandatory`.
+ *   - Sessions pin their resolved billing rules; superseded rules are kept and
+ *     historical reporting is never altered retroactively.
  *
- * Changing a value here is a code change. End users must never edit these
- * from the UI.
+ * The v1.1 constants still used by the working prototype live in
+ * `./policy.legacy.ts` and are re-exported at the bottom of this file so the
+ * existing 21 importers keep working (core rule 6). Every v1.1 key is mapped
+ * in `POLICY_KEY_MIGRATION`. New code must read `CONFIG`.
  */
 
-export type PolicyStatus = "CONFIRMED" | "ASSUMED";
+/* ------------------------------------------------------------------ */
+/* Types                                                               */
+/* ------------------------------------------------------------------ */
 
-export type PolicyValue<T> = {
-  readonly value: T;
-  readonly status: PolicyStatus;
-  /** ISO date of the decision (CONFIRMED) or of the assumption (ASSUMED). */
-  readonly decidedOn: string;
+/** §19.5 statuses. A founder decision is not an external verification. */
+export type ConfigStatus =
+  "FOUNDER_DECIDED" | "PROPOSED" | "VERIFIED_EXTERNAL" | "PENDING_VERIFICATION";
+
+/** Where a value may be set. Resolution order is listed in §19.5. */
+export type ConfigScope = "platform" | "country" | "network" | "owner" | "site";
+
+export type ConfigType = "number" | "string" | "boolean" | "string[]" | "object";
+
+export type ConfigDefinition<T> = {
+  /** Registry key. Must equal the property name in `CONFIG`. */
+  readonly key: string;
+  /** `null` means unknown — the dependent feature stays disabled. */
+  readonly value: T | null;
+  readonly type: ConfigType;
+  /** Unit of measure, e.g. "seconds", "minutes", "percent", "bps". */
+  readonly unit: string | null;
+  /** Set if and only if this is a `*_AMOUNT` money key. */
+  readonly currency: string | null;
+  readonly scope: ConfigScope;
+  readonly status: ConfigStatus;
+  /** Document reference. Required for `VERIFIED_EXTERNAL`. */
+  readonly source: string | null;
+  /** Who decided or reviewed this value. */
+  readonly decision: string | null;
+  readonly effectiveFrom: string | null;
+  readonly version: number;
+  /** A network/owner/site override may not weaken a mandatory value. */
+  readonly mandatory: boolean;
+  /** Permitted numeric override range, inclusive. */
+  readonly overrideRange: readonly [number, number] | null;
   readonly note: string;
 };
 
-const confirmed = <T>(value: T, decidedOn: string, note: string): PolicyValue<T> => ({
+export type AnyConfigDefinition = ConfigDefinition<unknown>;
+
+type Partially<T> = Partial<ConfigDefinition<T>>;
+
+const define = <T>(
+  key: string,
+  status: ConfigStatus,
+  value: T | null,
+  type: ConfigType,
+  rest: Partially<T>,
+): ConfigDefinition<T> => ({
+  key,
   value,
-  status: "CONFIRMED",
-  decidedOn,
-  note,
+  type,
+  unit: rest.unit ?? null,
+  currency: rest.currency ?? null,
+  scope: rest.scope ?? "network",
+  status,
+  source: rest.source ?? null,
+  decision: rest.decision ?? null,
+  effectiveFrom: rest.effectiveFrom ?? null,
+  version: rest.version ?? 1,
+  mandatory: rest.mandatory ?? false,
+  overrideRange: rest.overrideRange ?? null,
+  note: rest.note ?? "",
 });
 
-const assumed = <T>(value: T, decidedOn: string, note: string): PolicyValue<T> => ({
-  value,
-  status: "ASSUMED",
-  decidedOn,
-  note,
-});
+/** UZA product choice. Not an external verification (§19.5). */
+const founderDecided = <T>(key: string, value: T | null, type: ConfigType, rest: Partially<T>) =>
+  define(key, "FOUNDER_DECIDED", value, type, rest);
+
+/** Engineering/commercial placeholder — test environments only. */
+const proposed = <T>(key: string, value: T | null, type: ConfigType, rest: Partially<T>) =>
+  define(key, "PROPOSED", value, type, rest);
+
+/** Regulator/provider rule with the source document retained. */
+const verifiedExternal = <T>(
+  key: string,
+  value: T | null,
+  type: ConfigType,
+  rest: Partially<T> & { source: string },
+) => define(key, "VERIFIED_EXTERNAL", value, type, rest);
+
+/** Outside claim awaiting authoritative evidence. Never drives production. */
+const pendingVerification = <T>(key: string, type: ConfigType, rest: Partially<T>) =>
+  define<T>(key, "PENDING_VERIFICATION", null, type, rest);
 
 /* ------------------------------------------------------------------ */
-/* Currency                                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Money is stored and computed as integer minor units. RWF has no circulating
- * subunit, but we keep 2 decimal places of headroom so per-kWh rates, splits
- * and refunds stay exact and reversible.
- */
-export const CURRENCY = {
-  code: "RWF",
-  minorUnitsPerUnit: 100,
-  /** Displayed figures are rounded to whole RWF: `RWF 1,234`. */
-  displayDecimals: 0,
-} as const;
-
-/* ------------------------------------------------------------------ */
-/* Market / expansion                                                  */
-/* ------------------------------------------------------------------ */
-
-export const HOME_COUNTRY = confirmed(
-  "RW",
-  "2026-09-02",
-  "Rwanda is the validation market. Country is a column everywhere, never hardcoded in logic.",
-);
-
-export const SUPPORTED_COUNTRIES = confirmed(
-  ["RW", "UG", "KE", "TZ", "CD"] as const,
-  "2026-09-02",
-  "East African expansion order. Adding one must never require a schema change.",
-);
-
-export const TIMEZONE = confirmed(
-  "Africa/Kigali",
-  "2026-09-02",
-  "All timestamps stored UTC, presented in Africa/Kigali.",
-);
-
-/* ------------------------------------------------------------------ */
-/* Tariff defaults — applied when an owner has not set their own        */
-/* ------------------------------------------------------------------ */
-
-export const TARIFF_DEFAULTS = {
-  /** Energy price per kWh, in minor units. 320 RWF/kWh. */
-  energyMinorPerKwh: assumed(
-    320 * CURRENCY.minorUnitsPerUnit,
-    "2026-09-02",
-    "Indicative DC fast-charge energy price pending REG tariff confirmation.",
-  ),
-  /** Time-based component per minute while charging, in minor units. */
-  timeMinorPerMinute: assumed(
-    0,
-    "2026-09-02",
-    "UZA prices energy, not time, by default. Owners may enable a time component.",
-  ),
-  /** Flat per-session connection fee, in minor units. */
-  sessionFeeMinor: assumed(
-    0,
-    "2026-09-02",
-    "No connection fee on the UZA network by default.",
-  ),
-  /** Idle / occupancy fee per minute once the grace period expires. */
-  idleFeeMinorPerMinute: assumed(
-    100 * CURRENCY.minorUnitsPerUnit,
-    "2026-09-02",
-    "100 RWF/min occupancy fee to keep fast-charge bays turning over.",
-  ),
-  /** Free minutes after the session finishes before idle billing starts. */
-  idleGraceMinutes: assumed(
-    10,
-    "2026-09-02",
-    "10 minutes' grace after the vehicle stops drawing power.",
-  ),
-} as const;
-
-/**
- * Time-of-use multipliers applied to the energy rate. Tiers mirror the
- * half-hour segment model in the database.
- */
-export const TOU_TIER_MULTIPLIER = {
-  valley: assumed(0.75, "2026-09-02", "Overnight surplus hydro window."),
-  standard: assumed(1.0, "2026-09-02", "Reference rate."),
-  peak: assumed(1.25, "2026-09-02", "Evening residential peak."),
-  sharp: assumed(1.5, "2026-09-02", "Grid-stress window; discourages fast charging."),
-} as const;
-
-export type TouTier = keyof typeof TOU_TIER_MULTIPLIER;
-
-/* ------------------------------------------------------------------ */
-/* Revenue split — third-party owned stations                          */
+/* Evidence sources                                                    */
 /* ------------------------------------------------------------------ */
 
 /**
- * Default split applied to gross session revenue for a host-owned station.
- * Energy cost is settled first (it is a pass-through to the utility), then the
- * remainder is split between the host and the UZA platform.
- *
- * A session pins the rule VERSION it settled under; changing these defaults
- * never re-prices a historical session.
+ * Document references for `VERIFIED_EXTERNAL` values. The file must exist in
+ * `docs/evidence/` before the value is relied on in production — see
+ * `docs/evidence/README.md`.
  */
-export const REVENUE_SPLIT_DEFAULTS = {
-  version: confirmed(1, "2026-09-02", "First published split rule version."),
-  /** Wholesale energy cost per kWh, in minor units — passed through to the utility. */
-  energyCostMinorPerKwh: assumed(
-    215 * CURRENCY.minorUnitsPerUnit,
-    "2026-09-02",
-    "REG industrial tariff estimate pending confirmed supply contract.",
-  ),
-  /** Host's share of net margin, in basis points. 7000 bps = 70%. */
-  hostShareBps: assumed(
-    7000,
-    "2026-09-02",
-    "Host keeps 70% of net margin where the host funds the hardware.",
-  ),
-  /** UZA platform fee share of net margin, in basis points. */
-  platformShareBps: assumed(
-    3000,
-    "2026-09-02",
-    "UZA keeps 30% of net margin for platform, payments and O&M.",
-  ),
+export const EVIDENCE = {
+  RURA_011_2026:
+    "docs/evidence/rura-011-2026.pdf — Regulations No 011/ENERGY/RURA/2026, Board approval 23/06/2026, signed 29/06/2026, in force on signature (Art. 39)",
 } as const;
 
-/** Owner payout cadence options and the default. */
-export const PAYOUT_SCHEDULES = confirmed(
-  ["weekly", "fortnightly", "monthly"] as const,
-  "2026-09-02",
-  "Settlement statement is generated per owner on this cadence.",
-);
-
-export const DEFAULT_PAYOUT_SCHEDULE = assumed(
-  "monthly" as const,
-  "2026-09-02",
-  "Monthly settlement unless an owner contract states otherwise.",
-);
+const RURA_REVIEWER = "Founder supplied the regulation text (v2.1, 7 Oct 2026)";
 
 /* ------------------------------------------------------------------ */
-/* Payments                                                            */
+/* The registry                                                        */
 /* ------------------------------------------------------------------ */
 
-export const PAYMENT_RAILS = confirmed(
-  ["momo", "airtel", "wallet", "fleet_postpaid"] as const,
-  "2026-09-02",
-  "MTN MoMo and Airtel Money are primary. Cards are out of scope for now.",
-);
+export const CONFIG = {
+  /* --- Network identity (rule 21: never UZA-specific in code) ------ */
 
-/**
- * Amount pre-authorised before a session may start, in minor units. Reconciled
- * against actual kWh at StopTransaction, then captured or refunded.
- */
-export const PREAUTH_AMOUNT_MINOR = assumed(
-  15_000 * CURRENCY.minorUnitsPerUnit,
-  "2026-09-02",
-  "RWF 15,000 hold covers a typical 45 kWh DC session at the default rate.",
-);
-
-export const MIN_WALLET_TOPUP_MINOR = assumed(
-  1_000 * CURRENCY.minorUnitsPerUnit,
-  "2026-09-02",
-  "Minimum MoMo top-up.",
-);
-
-/* ------------------------------------------------------------------ */
-/* Operations / OCPP                                                   */
-/* ------------------------------------------------------------------ */
-
-export const OCPP = {
-  /** The only protocol UZA speaks to chargers. Vendor-agnostic by contract. */
-  protocol: confirmed("ocpp1.6", "2026-09-02", "OCPP 1.6-J over WebSocket."),
-  /** Heartbeat interval returned in BootNotification, in seconds. */
-  heartbeatIntervalSeconds: confirmed(
-    300,
-    "2026-09-02",
-    "5-minute heartbeat: tolerant of patchy Rwandan mobile backhaul.",
+  NETWORK_COUNTRY: founderDecided("NETWORK_COUNTRY", "RW", "string", {
+    scope: "network",
+    decision: "UCN is network #1; Rwanda is the validation market",
+    note: "Country is network configuration. UCN's value is just the first configuration.",
+  }),
+  NETWORK_CURRENCY: founderDecided("NETWORK_CURRENCY", "RWF", "string", {
+    scope: "network",
+    note: "Every *_AMOUNT key is denominated in the network's currency.",
+  }),
+  NETWORK_TIMEZONE: founderDecided("NETWORK_TIMEZONE", "Africa/Kigali", "string", {
+    scope: "network",
+    note: "Store UTC, present in the network timezone, retain event timezone context (§19.3).",
+  }),
+  PLATFORM_SUPPORTED_COUNTRIES: proposed(
+    "PLATFORM_SUPPORTED_COUNTRIES",
+    ["RW", "UG", "KE", "TZ", "CD"] as readonly string[],
+    "string[]",
+    {
+      scope: "platform",
+      note: "Expansion order only. A country is ready when §17 country-pack readiness is evidenced (D-29).",
+    },
   ),
   /**
-   * A charge point silent for longer than heartbeat × this factor is rendered
-   * offline with its last-seen time. It is never shown as stale-live.
+   * CONFLICT WITH CORE RULE 8 — see OPEN_QUESTIONS.md Q-01.
+   * Core rule 8 requires integer RWF (1 minor unit per unit). The working
+   * prototype stores RWF x 100 throughout `src/lib/pricing.ts` and its tests.
+   * Kept at 100 so existing money maths stays correct; migration is an open
+   * decision, not a silent change.
    */
-  offlineAfterMissedHeartbeats: confirmed(
-    2,
-    "2026-09-02",
-    "Two missed heartbeats before a pile is called offline.",
-  ),
-  /** UZA's own hardware standard. AC and lower-power DC must also work. */
-  houseStandardKw: confirmed(
-    180,
-    "2026-09-02",
-    "180 kW dual-gun DC is the UZA standard pile.",
-  ),
-} as const;
+  MONEY_MINOR_UNITS_PER_UNIT: proposed("MONEY_MINOR_UNITS_PER_UNIT", 100, "number", {
+    scope: "network",
+    unit: "minor_units_per_unit",
+    mandatory: true,
+    note: "Conflicts with core rule 8 (integer RWF). Prototype uses 100. See OPEN_QUESTIONS.md Q-01.",
+  }),
 
-/**
- * Uptime target used to colour the headline KPI.
- * GREEN on track, AMBER at risk, RED blocked.
- */
-export const UPTIME_TARGETS = {
-  greenAtOrAbovePct: confirmed(98, "2026-09-02", "Contractual availability target."),
-  amberAtOrAbovePct: confirmed(95, "2026-09-02", "Below this a site is escalated."),
-  /** Hours of observed status history required before uptime is reported at all. */
-  minObservationHours: confirmed(
-    24,
-    "2026-09-02",
-    "Below this the UI says 'insufficient data' rather than inventing a number.",
-  ),
-} as const;
+  /* --- Gateway and telemetry (§6) --------------------------------- */
 
-/* ------------------------------------------------------------------ */
-/* Subscription — UZA sells the management system as software          */
-/* ------------------------------------------------------------------ */
+  OCPP_PROTOCOL: founderDecided("OCPP_PROTOCOL", "ocpp1.6", "string", {
+    scope: "platform",
+    mandatory: true,
+    note: "OCPP 1.6J over WSS. 2.0.1 is a separate implementation (§26.4).",
+  }),
+  HEARTBEAT_INTERVAL_SECONDS: founderDecided("HEARTBEAT_INTERVAL_SECONDS", 300, "number", {
+    scope: "network",
+    unit: "seconds",
+    overrideRange: [60, 900],
+    note: "Returned in BootNotification; tolerant of patchy mobile backhaul.",
+  }),
+  OFFLINE_AFTER: founderDecided("OFFLINE_AFTER", 600, "number", {
+    scope: "network",
+    unit: "seconds",
+    overrideRange: [120, 3600],
+    note: "No heartbeat or traffic for this long -> Offline, with last-seen time (§6.2, core rule 13). Replaces the v1.1 missed-heartbeat multiplier.",
+  }),
+  OFFLINE_ALERT_AFTER: proposed("OFFLINE_ALERT_AFTER", 900, "number", {
+    scope: "network",
+    unit: "seconds",
+    note: "Alarm threshold for an offline charger (§14).",
+  }),
+  CLOCK_DRIFT_ALERT: proposed("CLOCK_DRIFT_ALERT", 60, "number", {
+    scope: "platform",
+    unit: "seconds",
+    note: "Flag chargers drifting more than this (§6.3). Event time and receive time are both preserved.",
+  }),
+  MAX_EVENT_LAG: proposed("MAX_EVENT_LAG", 5, "number", {
+    scope: "platform",
+    unit: "seconds",
+    note: "Charger message -> visible on dashboards (§19.1 target). Also the simulator load-test bound (§6.8); a simulator result is not a production SLA (§32.3).",
+  }),
+  METER_SAMPLE_INTERVAL_SECONDS: founderDecided("METER_SAMPLE_INTERVAL_SECONDS", 30, "number", {
+    scope: "network",
+    unit: "seconds",
+    note: "MeterValueSampleInterval pushed at provisioning (§6.4).",
+  }),
+  CLOCK_ALIGNED_DATA_INTERVAL_SECONDS: founderDecided(
+    "CLOCK_ALIGNED_DATA_INTERVAL_SECONDS",
+    900,
+    "number",
+    { scope: "network", unit: "seconds", note: "ClockAlignedDataInterval, also when idle (§6.4)." },
+  ),
 
-/**
- * Plan catalogue defaults, mirrored in the `subscription_plans` table.
- * Prices are ASSUMED until UZA leadership signs off; the seeded rows carry the
- * same figures so the portal and this registry never disagree.
- */
-export const SUBSCRIPTION_DEFAULTS = {
-  plans: assumed(
-    [
-      { code: "starter", minMonthlyMinor: 2_500_000, perChargePointMinor: 2_500_000, included: 1 },
-      { code: "pro", minMonthlyMinor: 10_000_000, perChargePointMinor: 2_000_000, included: 5 },
-      { code: "enterprise", minMonthlyMinor: 50_000_000, perChargePointMinor: 1_500_000, included: 25 },
-    ],
-    "2026-09-03",
-    "Starter RWF 25,000/mo, Pro RWF 100,000/mo, Enterprise RWF 500,000/mo minimums — placeholder pricing pending CEO sign-off.",
-  ),
-  trialDays: assumed(30, "2026-09-03", "Free trial length for a new station owner."),
-  invoiceDueDays: assumed(14, "2026-09-03", "Payment terms on a subscription invoice."),
-  billingDay: assumed(1, "2026-09-03", "Day of month invoices are raised."),
-} as const;
+  /* --- Session exposure control (§7.3) ---------------------------- */
 
-/* ------------------------------------------------------------------ */
-/* Forecasting — estimates, always labelled as such                    */
-/* ------------------------------------------------------------------ */
-
-export const FORECAST = {
-  minDaysForProjection: confirmed(
-    7,
-    "2026-09-03",
-    "Below a week of realised days we refuse to project at all.",
-  ),
-  recentDays: assumed(7, "2026-09-03", "Trailing window used as the projection base."),
-  minBandPct: assumed(15, "2026-09-03", "Floor on the projection band, so it is never shown as exact."),
-  flatBandPct: assumed(5, "2026-09-03", "Change smaller than this reads as flat, not a trend."),
-} as const;
-
-/* ------------------------------------------------------------------ */
-/* Investment health score                                             */
-/* ------------------------------------------------------------------ */
-
-export const INVESTMENT_HEALTH = {
-  weights: confirmed(
-    { uptime: 40, utilisation: 30, revenue: 20, faults: 10 },
-    "2026-09-03",
-    "Availability dominates: charging is an availability business.",
-  ),
-  healthyUtilisationPct: assumed(
-    25,
-    "2026-09-03",
-    "Share of observed time delivering energy that scores full marks.",
-  ),
-  healthyRevenuePerPilePerDayMinor: assumed(
-    3_000_000,
-    "2026-09-03",
-    "RWF 30,000 per pile per day scores full marks on revenue.",
-  ),
-  greenAtOrAbove: confirmed(75, "2026-09-03", "Investment on track."),
-  amberAtOrAbove: confirmed(50, "2026-09-03", "Investment at risk."),
-} as const;
-
-
-/* ------------------------------------------------------------------ */
-/* UZA EMPOWER — driver training, bank financing, savings companion    */
-/* ------------------------------------------------------------------ */
-
-/**
- * The deposit bridge. The bank must ALWAYS see a full deposit; whatever the
- * driver cannot bring, UZA fronts and grosses into the vehicle price to recover
- * it. The driver borrows and repays 100% of his own loan; UZA takes no profit
- * on collateral held.
- *
- * Invariant, unit-tested in src/lib/empower.ts:
- *   loan principal + client contribution === vehicle price
- */
-export const EMPOWER = {
-  /** Fixed UZA selling price per vehicle, regardless of contribution. */
-  vehiclePriceMinor: confirmed(
-    22_500_000 * CURRENCY.minorUnitsPerUnit,
-    "2026-09-03",
-    "RWF 22,500,000 per vehicle, fixed by the CEO. An input, never computed.",
-  ),
-  /** Deposit the financing institution must see, in basis points of the total. */
-  bankDepositBps: confirmed(
-    1000,
-    "2026-09-03",
-    "Banks require a full 10% deposit. Each institution may configure its own tier.",
-  ),
-  /** Floor on what the driver brings in cash. Training substitutes for the rest. */
-  minClientContributionMinor: confirmed(
-    500_000 * CURRENCY.minorUnitsPerUnit,
-    "2026-09-03",
-    "RWF 500,000 minimum client contribution plus completed training as driver equity.",
-  ),
-  termMonths: confirmed(48, "2026-09-03", "48-month loan term."),
-  collateralReleaseMonth: confirmed(
-    24,
-    "2026-09-03",
-    "Blocked cash collateral is released at month 24 and recycled as bank exposure falls.",
-  ),
-  /** Interest used for the indicative instalment until a bank offer is on paper. */
-  annualInterestBps: assumed(
-    1800,
-    "2026-09-03",
-    "18% per year reducing balance — indicative only; each bank's offer overrides it.",
-  ),
-  /** Days a taxi driver realistically works in a month / a week. */
-  workingDaysPerMonth: assumed(
-    28,
-    "2026-09-03",
-    "Daily target is the instalment spread over working days, not calendar days.",
-  ),
-  workingDaysPerWeek: assumed(6, "2026-09-03", "Six working days; one rest day."),
-  savingCadences: confirmed(
-    ["daily", "weekly", "monthly", "per_contract"] as const,
-    "2026-09-03",
-    "Taxi drivers save daily; contracted drivers align to their payment date.",
-  ),
-  /** Default named sub-accounts opened for a financed driver, in basis points of the daily target. */
-  potAllocationBps: assumed(
+  OFFLINE_CHARGING_ENABLED: founderDecided("OFFLINE_CHARGING_ENABLED", false, "boolean", {
+    scope: "network",
+    mandatory: true,
+    note: "Disabled by default for monetary-limited consumer cards until the hardware and exposure gate passes (§8.4).",
+  }),
+  STOP_EXPOSURE_WINDOW_SECONDS: pendingVerification("STOP_EXPOSURE_WINDOW_SECONDS", "number", {
+    scope: "platform",
+    unit: "seconds",
+    mandatory: true,
+    note: "Per charger model: max sample age + processing/command latency + charger stopping latency. Must be measured per model before a monetary-limited session is allowed (§7.3.5, D-20).",
+  }),
+  STOP_UNCERTAINTY_BUFFER_AMOUNT: pendingVerification("STOP_UNCERTAINTY_BUFFER_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    mandatory: true,
+    note: "Added to the dynamic stopping reserve (§7.3.5). The v1.1 fixed margin is REMOVED — a flat amount cannot cover 240 kW for the exposure window.",
+  }),
+  OVERSHOOT_LIABILITY: pendingVerification("OVERSHOOT_LIABILITY", "string", {
+    scope: "network",
+    mandatory: true,
+    note: "Who bears stop overshoot: driver (disclosed consent) / owner / network. Unknown liability is a production blocker (§7.3.9, D-20).",
+  }),
+  OFFLINE_ALLOWANCE_AMOUNT: pendingVerification("OFFLINE_ALLOWANCE_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Bounded offline allowance, only where the model demonstrably enforces a local limit (§8.4, D-21).",
+  }),
+  OFFLINE_ALLOWANCE_EXPIRY_SECONDS: pendingVerification(
+    "OFFLINE_ALLOWANCE_EXPIRY_SECONDS",
+    "number",
     {
-      loan: 6000,
-      maintenance: 1500,
-      electricity: 1500,
-      opex: 500,
-      personal: 500,
+      scope: "network",
+      unit: "seconds",
+      note: "Max offline age before credentials fail closed (§8.4, D-21).",
     },
-    "2026-09-03",
-    "Suggested split of the daily saving. The driver may rename and re-weight every pot.",
   ),
-  /** How the bank-readiness score is composed. */
-  readinessWeights: assumed(
-    { training: 30, discipline: 40, recordLength: 20, arrears: 10 },
-    "2026-09-03",
-    "Evidence we present to a bank when arguing for a lower client contribution.",
-  ),
-  /** Score at or above which UZA presents a driver for 0% client contribution. */
-  zeroContributionAtOrAbove: assumed(
-    80,
-    "2026-09-03",
-    "Below this the driver still needs the cash minimum above.",
-  ),
-  /** Days of recorded saving before the score can reach full marks on record length. */
-  matureRecordDays: assumed(90, "2026-09-03", "Three months of daily records is a track record."),
-  /** Local hour the daily reminder is due. */
-  reminderHourLocal: assumed(19, "2026-09-03", "Evening reminder, after the working day."),
-} as const;
 
+  /* --- Tariffs, fees and promotions (§9) -------------------------- */
+
+  TARIFF_DEFAULT_ENERGY_AMOUNT_PER_KWH: proposed(
+    "TARIFF_DEFAULT_ENERGY_AMOUNT_PER_KWH",
+    32_000,
+    "number",
+    {
+      scope: "owner",
+      currency: "RWF",
+      note: "RWF 320/kWh in minor units. Indicative pending the REG purchase tariff. Owners set their own prices (§9).",
+    },
+  ),
+  TARIFF_DEFAULT_SERVICE_AMOUNT_PER_KWH: proposed(
+    "TARIFF_DEFAULT_SERVICE_AMOUNT_PER_KWH",
+    0,
+    "number",
+    {
+      scope: "owner",
+      currency: "RWF",
+      note: "§9 prices each tier as energy + service per kWh. Driver sees one clear total before starting.",
+    },
+  ),
+  TARIFF_DEFAULT_START_FEE_AMOUNT: proposed("TARIFF_DEFAULT_START_FEE_AMOUNT", 0, "number", {
+    scope: "owner",
+    currency: "RWF",
+    note: "No start fee by default.",
+  }),
+  TARIFF_DEFAULT_TIME_AMOUNT_PER_MINUTE: proposed(
+    "TARIFF_DEFAULT_TIME_AMOUNT_PER_MINUTE",
+    0,
+    "number",
+    { scope: "owner", currency: "RWF", note: "UZA prices energy, not time, by default." },
+  ),
+  TARIFF_SEGMENTS_PER_DAY: founderDecided("TARIFF_SEGMENTS_PER_DAY", 48, "number", {
+    scope: "platform",
+    unit: "segments",
+    note: "48 half-hour segments, each mapped to sharp/peak/standard/valley (§9). Note §19.3: 48 labels are not a universal UTC-day model.",
+  }),
+  TARIFF_TIER_MULTIPLIER_VALLEY: proposed("TARIFF_TIER_MULTIPLIER_VALLEY", 0.75, "number", {
+    scope: "owner",
+    unit: "multiplier",
+    note: "Carried from v1.1. §9 intends explicit per-tier energy+service prices; multipliers are the interim shape.",
+  }),
+  TARIFF_TIER_MULTIPLIER_STANDARD: proposed("TARIFF_TIER_MULTIPLIER_STANDARD", 1.0, "number", {
+    scope: "owner",
+    unit: "multiplier",
+    note: "Reference rate.",
+  }),
+  TARIFF_TIER_MULTIPLIER_PEAK: proposed("TARIFF_TIER_MULTIPLIER_PEAK", 1.25, "number", {
+    scope: "owner",
+    unit: "multiplier",
+    note: "Evening residential peak.",
+  }),
+  TARIFF_TIER_MULTIPLIER_SHARP: proposed("TARIFF_TIER_MULTIPLIER_SHARP", 1.5, "number", {
+    scope: "owner",
+    unit: "multiplier",
+    note: "Grid-stress window.",
+  }),
+  IDLE_FEE_AMOUNT_PER_MINUTE: founderDecided("IDLE_FEE_AMOUNT_PER_MINUTE", 0, "number", {
+    scope: "owner",
+    currency: "RWF",
+    decision: "D-08 placeholder 0",
+    note: "Activation requires charger capability, validated completion evidence, notification, exemptions and dispute remedy (§9). The v1.1 100 RWF/min default is not active.",
+  }),
+  IDLE_FEE_GRACE_MINUTES: founderDecided("IDLE_FEE_GRACE_MINUTES", 10, "number", {
+    scope: "owner",
+    unit: "minutes",
+    decision: "D-08 placeholder",
+    note: "Grace after a VALIDATED charging-completion event. SuspendedEV alone is not completion (§9, §10.4).",
+  }),
+  IDLE_FEE_CAP_AMOUNT: pendingVerification("IDLE_FEE_CAP_AMOUNT", "number", {
+    scope: "owner",
+    currency: "RWF",
+    note: "D-08 cap not decided.",
+  }),
+
+  /* --- Bookings (§10) --------------------------------------------- */
+
+  BOOKING_WINDOW_BEFORE_MINUTES: founderDecided("BOOKING_WINDOW_BEFORE_MINUTES", 2, "number", {
+    scope: "site",
+    unit: "minutes",
+    decision: "UCN default, FOUNDER_DECIDED (§10.1)",
+    note: "T-2 min. Per-site overrides are audited (§10.4). v1.1 used 10 min — superseded.",
+  }),
+  BOOKING_WINDOW_AFTER_MINUTES: founderDecided("BOOKING_WINDOW_AFTER_MINUTES", 2, "number", {
+    scope: "site",
+    unit: "minutes",
+    decision: "UCN default, FOUNDER_DECIDED (§10.1)",
+    note: "T+2 min, then CancelReservation and release. v1.1 used 10 min — superseded.",
+  }),
+  BOOKING_SLOT: proposed("BOOKING_SLOT", 45, "number", {
+    scope: "site",
+    unit: "minutes",
+    decision: "D-06 placeholder 45",
+    note: "v1.1 used 30. Only free slots are offered.",
+  }),
+  BOOKING_MIN_MINUTES: proposed("BOOKING_MIN_MINUTES", 15, "number", {
+    scope: "site",
+    unit: "minutes",
+    note: "Shortest useful booking.",
+  }),
+  BOOKING_MAX_MINUTES: proposed("BOOKING_MAX_MINUTES", 180, "number", {
+    scope: "site",
+    unit: "minutes",
+    note: "Longest single booking on a public gun.",
+  }),
+  BOOKING_MAX_AHEAD_HOURS: proposed("BOOKING_MAX_AHEAD_HOURS", 24, "number", {
+    scope: "site",
+    unit: "hours",
+    note: "How far ahead a driver may book.",
+  }),
+  BOOKING_MAX_LIVE_PER_DRIVER: proposed("BOOKING_MAX_LIVE_PER_DRIVER", 2, "number", {
+    scope: "network",
+    unit: "bookings",
+    note: "Stops one driver hoarding guns.",
+  }),
+  BOOKING_MAX_SHARE_PCT: proposed("BOOKING_MAX_SHARE_PCT", 50, "number", {
+    scope: "site",
+    unit: "percent",
+    overrideRange: [0, 100],
+    note: "Keep walk-in capacity (§10.3).",
+  }),
+  BOOKING_FEE_AMOUNT: founderDecided("BOOKING_FEE_AMOUNT", 0, "number", {
+    scope: "site",
+    currency: "RWF",
+    decision: "D-07 placeholder 0",
+    note: "Owner-configurable within policy.",
+  }),
+  BOOKING_NO_SHOW_FEE_AMOUNT: founderDecided("BOOKING_NO_SHOW_FEE_AMOUNT", 0, "number", {
+    scope: "site",
+    currency: "RWF",
+    decision: "D-07 placeholder 0",
+    note: "Applied only after a valid no-show per §10.2.7. Backend/payment/charger latency must not create a no-show.",
+  }),
+  BOOKING_FAILURE_CREDIT_AMOUNT: pendingVerification("BOOKING_FAILURE_CREDIT_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Apology credit when the gun is still occupied at T-2 min (§10.2.5). Amount not decided (D-07/D-23).",
+  }),
+  BOOKING_START_GRACE_SECONDS: pendingVerification("BOOKING_START_GRACE_SECONDS", "number", {
+    scope: "network",
+    unit: "seconds",
+    note: "Charger-start grace after a valid arrival (§10.2.6, D-23).",
+  }),
+  FREE_CANCEL_LEAD: proposed("FREE_CANCEL_LEAD", 60, "number", {
+    scope: "site",
+    unit: "minutes",
+    note: "Free cancellation until T minus this; after that a tiered fee (D-07).",
+  }),
+
+  /* --- Cards, agents and top-ups (§8.3) --------------------------- */
+
+  FUND_HOLDER: pendingVerification("FUND_HOLDER", "string", {
+    scope: "network",
+    mandatory: true,
+    note: "`operator` | `licensed_partner`. Awaiting BNR (§8.3.9, D-16). Until confirmed, card spending at third-party sites stays behind feature.networkWallet.",
+  }),
+  CARD_MIN_START_BALANCE_AMOUNT: pendingVerification("CARD_MIN_START_BALANCE_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Minimum balance to approve Authorize (§8.3.5). Depends on the dynamic stopping reserve (D-10/D-20).",
+  }),
+  CARD_LOW_BALANCE_AMOUNT: proposed("CARD_LOW_BALANCE_AMOUNT", 200_000, "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "RWF 2,000 in minor units. Low-balance SMS includes merchant code and card number (§8.3.4).",
+  }),
+  CARD_LIGHT_DAILY_LIMIT_AMOUNT: pendingVerification("CARD_LIGHT_DAILY_LIMIT_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Anonymous (light) card daily limit — awaiting BNR KYC guidance (§8.3.3, D-15).",
+  }),
+  CARD_LIGHT_BALANCE_CAP_AMOUNT: pendingVerification("CARD_LIGHT_BALANCE_CAP_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Anonymous card balance cap — awaiting BNR (D-15).",
+  }),
+  CARD_REGISTERED_DAILY_LIMIT_AMOUNT: pendingVerification(
+    "CARD_REGISTERED_DAILY_LIMIT_AMOUNT",
+    "number",
+    {
+      scope: "network",
+      currency: "RWF",
+      note: "Registered card daily limit — awaiting BNR (D-15).",
+    },
+  ),
+  CARD_PRICE_AMOUNT: pendingVerification("CARD_PRICE_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "D-09/D-14: sold, free with first top-up, or subsidised.",
+  }),
+  CARD_REPLACEMENT_FEE_AMOUNT: pendingVerification("CARD_REPLACEMENT_FEE_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "D-09/D-14.",
+  }),
+  CARD_FIRST_TOPUP_MIN_AMOUNT: pendingVerification("CARD_FIRST_TOPUP_MIN_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "D-09.",
+  }),
+  CARD_CHIP_TARGET: founderDecided("CARD_CHIP_TARGET", "DESFire EV3", "string", {
+    scope: "network",
+    decision: "D-17 target",
+    note: "Chip compatibility is not proof of secure authentication. Reader key provisioning/rotation must be tested before production cards (§8.3.2).",
+  }),
+  CARD_DORMANT_AFTER_DAYS: pendingVerification("CARD_DORMANT_AFTER_DAYS", "number", {
+    scope: "network",
+    unit: "days",
+    note: "Dormant-balance rules follow BNR/consumer-protection guidance — never silently forfeited (§8.3.7).",
+  }),
+  AGENT_COMMISSION: pendingVerification("AGENT_COMMISSION", "number", {
+    scope: "network",
+    unit: "bps",
+    note: "Commission per top-up (§8.3.8, D-14).",
+  }),
+  MIN_TOPUP_AMOUNT: proposed("MIN_TOPUP_AMOUNT", 100_000, "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "RWF 1,000 in minor units.",
+  }),
+
+  /* --- Payments, settlement and payouts (§8) ---------------------- */
+
+  PAYMENT_RAILS: founderDecided(
+    "PAYMENT_RAILS",
+    ["momo", "airtel", "wallet", "cash", "fleet_postpaid"] as readonly string[],
+    "string[]",
+    {
+      scope: "network",
+      note: "All provider rails are AWAITING CREDENTIALS (§8.1). Bank cards are never primary (core rule 17).",
+    },
+  ),
+  PROVIDER_RESOLUTION_TIMEOUT_SECONDS: proposed(
+    "PROVIDER_RESOLUTION_TIMEOUT_SECONDS",
+    900,
+    "number",
+    {
+      scope: "platform",
+      unit: "seconds",
+      note: "Unknown provider outcomes are queried/reconciled before any resend; escalate unresolved items within this deadline (§8.1).",
+    },
+  ),
+  SUPPORT_REFUND_LIMIT_AMOUNT: proposed("SUPPORT_REFUND_LIMIT_AMOUNT", 1_000_000, "number", {
+    scope: "platform",
+    currency: "RWF",
+    note: "RWF 10,000 in minor units. Above this, finance approval under the two-person rule (§8.6).",
+  }),
+  MAKER_CHECKER_THRESHOLD_AMOUNT: pendingVerification("MAKER_CHECKER_THRESHOLD_AMOUNT", "number", {
+    scope: "platform",
+    currency: "RWF",
+    note: "Two-person approval threshold (§19.2, D-25).",
+  }),
+  SETTLEMENT_SPLIT_RULE_VERSION: founderDecided("SETTLEMENT_SPLIT_RULE_VERSION", 1, "number", {
+    scope: "platform",
+    unit: "version",
+    note: "A session pins the split rule version it settled under (§8.5).",
+  }),
+  NETWORK_FEE_BPS: pendingVerification("NETWORK_FEE_BPS", "number", {
+    scope: "owner",
+    unit: "bps",
+    note: "Model C network transaction fee (D-03). v1.1 carried 3000 bps as an assumption; not a decided price.",
+  }),
+  MANAGEMENT_FEE_BPS: pendingVerification("MANAGEMENT_FEE_BPS", "number", {
+    scope: "owner",
+    unit: "bps",
+    note: "Model B management fee as % of revenue (D-03).",
+  }),
+  HOST_SHARE_BPS: pendingVerification("HOST_SHARE_BPS", "number", {
+    scope: "site",
+    unit: "bps",
+    note: "Only where the contract says so (§8.5). v1.1 carried 7000 bps as an assumption.",
+  }),
+  SITE_ENERGY_COST_AMOUNT_PER_KWH: proposed("SITE_ENERGY_COST_AMOUNT_PER_KWH", null, "number", {
+    scope: "site",
+    currency: "RWF",
+    note: "The owner's own REG purchase tariff, by time of day where applicable. Used for margin and P&L, never shown to drivers (§9). Null until the site's bill or tariff is entered.",
+  }),
+  PAYOUT_MODES: founderDecided(
+    "PAYOUT_MODES",
+    ["accelerated", "daily_sweep", "weekly", "on_demand"] as readonly string[],
+    "string[]",
+    { scope: "network", note: "Owner chooses, within policy limits (§8.5)." },
+  ),
+  PAYOUT_MODE_DEFAULT: founderDecided("PAYOUT_MODE_DEFAULT", "daily_sweep", "string", {
+    scope: "owner",
+    decision: "D-05 placeholder",
+    note: "Ledger credit is not evidence of a successful external transfer.",
+  }),
+  DISBURSEMENT_FEE_PAYER: founderDecided("DISBURSEMENT_FEE_PAYER", "owner", "string", {
+    scope: "owner",
+    decision: "D-05 placeholder",
+    note: "Shown to the owner before they choose a payout mode (§8.5).",
+  }),
+  PAYOUT_MIN_AMOUNT: pendingVerification("PAYOUT_MIN_AMOUNT", "number", {
+    scope: "network",
+    currency: "RWF",
+    note: "Configured minimum for an accelerated disbursement (§8.5).",
+  }),
+  VAT_RATE_BPS: pendingVerification("VAT_RATE_BPS", "number", {
+    scope: "country",
+    unit: "bps",
+    note: "Depends on seller of record per model A/B/C — REQUIRES OFFICIAL VERIFICATION (RRA, §7.5).",
+  }),
+  ROAMING_FUNDED_CREDIT_CAP_AMOUNT: pendingVerification(
+    "ROAMING_FUNDED_CREDIT_CAP_AMOUNT",
+    "number",
+    {
+      scope: "network",
+      currency: "RWF",
+      note: "The platform never assumes an unlimited obligation to front roaming payments (§17.7).",
+    },
+  ),
+
+  /* --- RURA regulatory pack (§15) — VERIFIED_EXTERNAL ------------- */
+
+  RURA_MIN_UPTIME_PCT: verifiedExternal("RURA_MIN_UPTIME_PCT", 97, "number", {
+    scope: "country",
+    unit: "percent",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 26(a): >= 97% around the clock. Report RAW uptime as the compliance figure (§15.1).",
+  }),
+  RURA_REPAIR_TARGET_HOURS: verifiedExternal("RURA_REPAIR_TARGET_HOURS", 24, "number", {
+    scope: "country",
+    unit: "hours",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 26: repair <= 24 h.",
+  }),
+  RURA_FLASH_REPORT_HOURS: verifiedExternal("RURA_FLASH_REPORT_HOURS", 1, "number", {
+    scope: "country",
+    unit: "hours",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 25(8): flash report within 1 h of an incident affecting service.",
+  }),
+  RURA_DETAILED_REPORT_HOURS: verifiedExternal("RURA_DETAILED_REPORT_HOURS", 48, "number", {
+    scope: "country",
+    unit: "hours",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 25(8): detailed report within 48 h if downtime > 1 h or RURA requires.",
+  }),
+  RURA_DETAILED_REPORT_DOWNTIME_TRIGGER_HOURS: verifiedExternal(
+    "RURA_DETAILED_REPORT_DOWNTIME_TRIGGER_HOURS",
+    1,
+    "number",
+    {
+      scope: "country",
+      unit: "hours",
+      source: EVIDENCE.RURA_011_2026,
+      decision: RURA_REVIEWER,
+      effectiveFrom: "2026-06-29",
+      mandatory: true,
+      note: "Art. 25(8).",
+    },
+  ),
+  RURA_COMPLAINT_RESOLUTION_HOURS: verifiedExternal(
+    "RURA_COMPLAINT_RESOLUTION_HOURS",
+    24,
+    "number",
+    {
+      scope: "country",
+      unit: "hours",
+      source: EVIDENCE.RURA_011_2026,
+      decision: RURA_REVIEWER,
+      effectiveFrom: "2026-06-29",
+      mandatory: true,
+      note: "Art. 26: complaints resolved <= 24 h, or a status update where investigation is needed.",
+    },
+  ),
+  RURA_SWAP_WAIT_MAX_MINUTES: verifiedExternal("RURA_SWAP_WAIT_MAX_MINUTES", 20, "number", {
+    scope: "country",
+    unit: "minutes",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    note: "Art. 26: swap wait <= 20 min. Battery swapping is not in current UZA scope (Annex III).",
+  }),
+  RURA_LICENCE_VALID_YEARS: verifiedExternal("RURA_LICENCE_VALID_YEARS", 5, "number", {
+    scope: "country",
+    unit: "years",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 19. Licence is issued PER SITE (Art. 4, 6).",
+  }),
+  RURA_LICENCE_LAPSE_MONTHS: verifiedExternal("RURA_LICENCE_LAPSE_MONTHS", 6, "number", {
+    scope: "country",
+    unit: "months",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 19: lapses if operations do not start within 6 months of issue.",
+  }),
+  RURA_RENEWAL_LEAD_DAYS: verifiedExternal("RURA_RENEWAL_LEAD_DAYS", 180, "number", {
+    scope: "country",
+    unit: "days",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 20: apply >= 180 days before expiry; reminders at 240/200/180 days.",
+  }),
+  RURA_SURRENDER_NOTICE_DAYS: verifiedExternal("RURA_SURRENDER_NOTICE_DAYS", 180, "number", {
+    scope: "country",
+    unit: "days",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Art. 34: written notice >= 180 days with reasons, timeline and transition plan.",
+  }),
+  RURA_TRANSITION_MONTHS: verifiedExternal("RURA_TRANSITION_MONTHS", 12, "number", {
+    scope: "country",
+    unit: "months",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    note: "Art. 37: pre-existing operators comply within 12 months (by end of June 2027).",
+  }),
+  RURA_FINE_AMOUNT: verifiedExternal("RURA_FINE_AMOUNT", 100_000_000, "number", {
+    scope: "country",
+    currency: "RWF",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    note: "RWF 1,000,000 in minor units. Art. 36: operating without a licence, unapproved expansion/relocation, cessation without 6 months' notice.",
+  }),
+  RURA_MIN_POWER_FACTOR: verifiedExternal("RURA_MIN_POWER_FACTOR", 0.9, "number", {
+    scope: "country",
+    unit: "power_factor",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: power factor >= 0.9.",
+  }),
+  RURA_MAX_THD_PCT: verifiedExternal("RURA_MAX_THD_PCT", 3, "number", {
+    scope: "country",
+    unit: "percent",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: THD < 3%.",
+  }),
+  RURA_MIN_DC_KW_PER_GUN: verifiedExternal("RURA_MIN_DC_KW_PER_GUN", 50, "number", {
+    scope: "country",
+    unit: "kW",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: at least one DC system >= 50 kW per gun.",
+  }),
+  RURA_MAX_EARTHING_OHMS: verifiedExternal("RURA_MAX_EARTHING_OHMS", 5, "number", {
+    scope: "country",
+    unit: "ohms",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: earthing < 5 ohms.",
+  }),
+  RURA_METER_ACCURACY_CLASS: verifiedExternal("RURA_METER_ACCURACY_CLASS", 1, "number", {
+    scope: "country",
+    unit: "class",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: class 1 (<= +/-1%) certified tamper-proof meters. The Wicen order form lists 'Level 2.0' — FAILS this until corrected (§15, D-28).",
+  }),
+  RURA_METER_RECALIBRATION_YEARS: verifiedExternal("RURA_METER_RECALIBRATION_YEARS", 5, "number", {
+    scope: "country",
+    unit: "years",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: recalibrated at least every 5 years.",
+  }),
+  RURA_MIN_CHARGING_TECHNOLOGIES: verifiedExternal("RURA_MIN_CHARGING_TECHNOLOGIES", 2, "number", {
+    scope: "country",
+    unit: "count",
+    source: EVIDENCE.RURA_011_2026,
+    decision: RURA_REVIEWER,
+    effectiveFrom: "2026-06-29",
+    mandatory: true,
+    note: "Annex I: at least the two most prevalent charging technologies.",
+  }),
+  RURA_TURNOVER_LEVY_BPS: pendingVerification("RURA_TURNOVER_LEVY_BPS", "number", {
+    scope: "country",
+    unit: "bps",
+    note: "Art. 18(2) defers the rate to a separate Regulatory Board Decision. Levy accrual stays DISABLED; reports read 'Rate not yet confirmed — not accrued' (§15.2).",
+  }),
+  RURA_UPTIME_EXCLUSIONS: pendingVerification("RURA_UPTIME_EXCLUSIONS", "string[]", {
+    scope: "country",
+    note: "The regulation names no exclusions. Until RURA confirms, raw uptime is the compliance figure and any adjusted uptime is shown separately and labelled (§15.1).",
+  }),
+  RURA_REPORT_TEMPLATE: pendingVerification("RURA_REPORT_TEMPLATE", "string", {
+    scope: "country",
+    note: "Art. 25(3) 'as prescribed by the Authority' — not yet published. Configurable generator until then.",
+  }),
+  RURA_MODEL_B_LICENSEE: pendingVerification("RURA_MODEL_B_LICENSEE", "string", {
+    scope: "owner",
+    note: "Who is licensee on a managed site — owner or UZA (D-04). Affects seller of record, VAT, levy and liability.",
+  }),
+
+  /* --- Uptime presentation (internal thresholds, not the rule) ---- */
+
+  UPTIME_GREEN_PCT: founderDecided("UPTIME_GREEN_PCT", 98, "number", {
+    scope: "network",
+    unit: "percent",
+    note: "UZA's internal 'on track' threshold, deliberately above the RURA 97% minimum. Not a regulatory figure.",
+  }),
+  UPTIME_AMBER_PCT: founderDecided("UPTIME_AMBER_PCT", 95, "number", {
+    scope: "network",
+    unit: "percent",
+    note: "Below this a site is escalated. Internal only.",
+  }),
+  UPTIME_MIN_OBSERVATION_HOURS: founderDecided("UPTIME_MIN_OBSERVATION_HOURS", 24, "number", {
+    scope: "platform",
+    unit: "hours",
+    mandatory: true,
+    note: "Below this the UI says 'insufficient data'. Unknown observation periods are never shown as up (§15.1, §30.2).",
+  }),
+
+  /* --- Platform licensing and SaaS billing (§17.5) ---------------- */
+
+  SAAS_PLANS: pendingVerification("SAAS_PLANS", "object", {
+    scope: "platform",
+    note: "Per-connector prices for Monitor/Operate (D-02). v1.1 carried placeholder prices; they are not decided.",
+  }),
+  SAAS_PLATFORM_LEASE_AMOUNT: pendingVerification("SAAS_PLATFORM_LEASE_AMOUNT", "number", {
+    scope: "platform",
+    currency: "RWF",
+    note: "Model D network lease (D-13).",
+  }),
+  SAAS_PRIVATE_LICENCE_AMOUNT: pendingVerification("SAAS_PRIVATE_LICENCE_AMOUNT", "number", {
+    scope: "platform",
+    currency: "RWF",
+    note: "Model E private licence (D-13).",
+  }),
+  SAAS_GRACE: founderDecided("SAAS_GRACE", 14, "number", {
+    scope: "platform",
+    unit: "days",
+    decision: "D-12 placeholder",
+    note: "Then restricted administration with continuing required records access. Active-session safety is preserved and collected funds are settled/refunded (§17.5).",
+  }),
+  SAAS_TRIAL_DAYS: proposed("SAAS_TRIAL_DAYS", 30, "number", {
+    scope: "platform",
+    unit: "days",
+    note: "Free trial length.",
+  }),
+  SAAS_INVOICE_DUE_DAYS: proposed("SAAS_INVOICE_DUE_DAYS", 14, "number", {
+    scope: "platform",
+    unit: "days",
+    note: "Payment terms on a subscription invoice.",
+  }),
+  SAAS_BILLING_DAY: proposed("SAAS_BILLING_DAY", 1, "number", {
+    scope: "platform",
+    unit: "day_of_month",
+    overrideRange: [1, 28],
+    note: "Day of month invoices are raised.",
+  }),
+
+  /* --- Reporting, forecasting and benchmarks ---------------------- */
+
+  FORECAST_MIN_DAYS: founderDecided("FORECAST_MIN_DAYS", 7, "number", {
+    scope: "platform",
+    unit: "days",
+    mandatory: true,
+    note: "Below a week of realised days, refuse to project at all. Projections are always labelled as projections (§12.4).",
+  }),
+  FORECAST_RECENT_DAYS: proposed("FORECAST_RECENT_DAYS", 7, "number", {
+    scope: "platform",
+    unit: "days",
+    note: "Trailing window used as the projection base.",
+  }),
+  FORECAST_MIN_BAND_PCT: proposed("FORECAST_MIN_BAND_PCT", 15, "number", {
+    scope: "platform",
+    unit: "percent",
+    note: "Floor on the projection band, so it is never shown as exact.",
+  }),
+  FORECAST_FLAT_BAND_PCT: proposed("FORECAST_FLAT_BAND_PCT", 5, "number", {
+    scope: "platform",
+    unit: "percent",
+    note: "Change smaller than this reads as flat, not a trend.",
+  }),
+  BENCHMARK_MIN_COHORT_SIZE: proposed("BENCHMARK_MIN_COHORT_SIZE", 5, "number", {
+    scope: "platform",
+    unit: "count",
+    mandatory: true,
+    note: "Suppress sparse groups that could identify one station or operator (§29).",
+  }),
+  REPORT_CLOSE_TOLERANCE_AMOUNT: pendingVerification("REPORT_CLOSE_TOLERANCE_AMOUNT", "number", {
+    scope: "platform",
+    currency: "RWF",
+    note: "Month-end close tolerance (§25.5, D-25).",
+  }),
+
+  /* --- Retention, recovery and support access --------------------- */
+
+  RETENTION_FINANCIAL_RECORDS_DAYS: pendingVerification(
+    "RETENTION_FINANCIAL_RECORDS_DAYS",
+    "number",
+    {
+      scope: "country",
+      unit: "days",
+      note: "Approved retention schedule by purpose and jurisdiction (§30.3, D-26).",
+    },
+  ),
+  RETENTION_RAW_OCPP_FRAMES_DAYS: pendingVerification("RETENTION_RAW_OCPP_FRAMES_DAYS", "number", {
+    scope: "platform",
+    unit: "days",
+    note: "Append-only DURING retention; immutability does not imply keeping all personal data forever (§6.3, §30.3).",
+  }),
+  RETENTION_TELEMETRY_DAYS: pendingVerification("RETENTION_TELEMETRY_DAYS", "number", {
+    scope: "platform",
+    unit: "days",
+    note: "High-frequency telemetry retention (§30.3, D-26).",
+  }),
+  RECOVERY_TIME_OBJECTIVE_MINUTES: pendingVerification(
+    "RECOVERY_TIME_OBJECTIVE_MINUTES",
+    "number",
+    {
+      scope: "platform",
+      unit: "minutes",
+      note: "Must be reviewed and TESTED before launch. A daily backup is not proof of recoverability (§30.2, D-26).",
+    },
+  ),
+  RECOVERY_POINT_OBJECTIVE_MINUTES: pendingVerification(
+    "RECOVERY_POINT_OBJECTIVE_MINUTES",
+    "number",
+    { scope: "platform", unit: "minutes", note: "§30.2, D-26." },
+  ),
+  SUPPORT_ACCESS_EXPIRY_HOURS: pendingVerification("SUPPORT_ACCESS_EXPIRY_HOURS", "number", {
+    scope: "platform",
+    unit: "hours",
+    note: "Support access is scoped to ticket, tenant, data type and time, with visible audit and expiry (§29, D-24).",
+  }),
+} as const satisfies Record<string, AnyConfigDefinition>;
+
+export type ConfigKey = keyof typeof CONFIG;
 
 /* ------------------------------------------------------------------ */
-/* Booking — reserving a pile ahead of arrival                         */
+/* v1.1 -> v2.1 key migration (§19.5: referencing an unknown key fails CI) */
+/* ------------------------------------------------------------------ */
+
+/** A v1.1 key that v2.1 deliberately deletes, with the reason. */
+export type RemovedKey = { readonly removed: true; readonly reason: string };
+
+const removed = (reason: string): RemovedKey => ({ removed: true, reason });
+
+/**
+ * Every key that appeared in the v1.1 `POLICY_REGISTRY` maps to its v2.1 key
+ * or to an explicit removal. `resolvePolicyKey()` uses this, and
+ * `assertMigrationMapComplete()` checks it against the legacy registry so a
+ * forgotten key fails CI rather than resolving silently to undefined.
+ */
+export const POLICY_KEY_MIGRATION = {
+  HOME_COUNTRY: "NETWORK_COUNTRY",
+  SUPPORTED_COUNTRIES: "PLATFORM_SUPPORTED_COUNTRIES",
+  TIMEZONE: "NETWORK_TIMEZONE",
+  "TARIFF_DEFAULTS.energyMinorPerKwh": "TARIFF_DEFAULT_ENERGY_AMOUNT_PER_KWH",
+  "TARIFF_DEFAULTS.timeMinorPerMinute": "TARIFF_DEFAULT_TIME_AMOUNT_PER_MINUTE",
+  "TARIFF_DEFAULTS.sessionFeeMinor": "TARIFF_DEFAULT_START_FEE_AMOUNT",
+  "TARIFF_DEFAULTS.idleFeeMinorPerMinute": "IDLE_FEE_AMOUNT_PER_MINUTE",
+  "TARIFF_DEFAULTS.idleGraceMinutes": "IDLE_FEE_GRACE_MINUTES",
+  "TOU_TIER_MULTIPLIER.valley": "TARIFF_TIER_MULTIPLIER_VALLEY",
+  "TOU_TIER_MULTIPLIER.standard": "TARIFF_TIER_MULTIPLIER_STANDARD",
+  "TOU_TIER_MULTIPLIER.peak": "TARIFF_TIER_MULTIPLIER_PEAK",
+  "TOU_TIER_MULTIPLIER.sharp": "TARIFF_TIER_MULTIPLIER_SHARP",
+  "REVENUE_SPLIT_DEFAULTS.version": "SETTLEMENT_SPLIT_RULE_VERSION",
+  "REVENUE_SPLIT_DEFAULTS.energyCostMinorPerKwh": "SITE_ENERGY_COST_AMOUNT_PER_KWH",
+  "REVENUE_SPLIT_DEFAULTS.hostShareBps": "HOST_SHARE_BPS",
+  "REVENUE_SPLIT_DEFAULTS.platformShareBps": "NETWORK_FEE_BPS",
+  PAYOUT_SCHEDULES: "PAYOUT_MODES",
+  DEFAULT_PAYOUT_SCHEDULE: "PAYOUT_MODE_DEFAULT",
+  PAYMENT_RAILS: "PAYMENT_RAILS",
+  PREAUTH_AMOUNT_MINOR: removed(
+    "v2.1 §7.3 replaces the fixed pre-authorisation margin with a dynamic stopping reserve computed per model from power bound, max rate and exposure window. A flat RWF 15,000 hold is neither a safe cap nor a correct reserve.",
+  ),
+  MIN_WALLET_TOPUP_MINOR: "MIN_TOPUP_AMOUNT",
+  "OCPP.protocol": "OCPP_PROTOCOL",
+  "OCPP.heartbeatIntervalSeconds": "HEARTBEAT_INTERVAL_SECONDS",
+  "OCPP.offlineAfterMissedHeartbeats": "OFFLINE_AFTER",
+  "OCPP.houseStandardKw": removed(
+    "A hardware fact, not a policy value. It belongs in the compatibility directory (§26.3) per charger model; §26.4 forbids hard-coding around one dual-gun DC model.",
+  ),
+  "UPTIME_TARGETS.greenAtOrAbovePct": "UPTIME_GREEN_PCT",
+  "UPTIME_TARGETS.amberAtOrAbovePct": "UPTIME_AMBER_PCT",
+  "UPTIME_TARGETS.minObservationHours": "UPTIME_MIN_OBSERVATION_HOURS",
+  "SUBSCRIPTION_DEFAULTS.plans": "SAAS_PLANS",
+  "SUBSCRIPTION_DEFAULTS.trialDays": "SAAS_TRIAL_DAYS",
+  "SUBSCRIPTION_DEFAULTS.invoiceDueDays": "SAAS_INVOICE_DUE_DAYS",
+  "SUBSCRIPTION_DEFAULTS.billingDay": "SAAS_BILLING_DAY",
+  "FORECAST.minDaysForProjection": "FORECAST_MIN_DAYS",
+  "FORECAST.recentDays": "FORECAST_RECENT_DAYS",
+  "FORECAST.minBandPct": "FORECAST_MIN_BAND_PCT",
+  "FORECAST.flatBandPct": "FORECAST_FLAT_BAND_PCT",
+  "INVESTMENT_HEALTH.weights": removed(
+    "v2.1 §25 replaces the composite investment-health score with three distinct views (station operating performance, station cash flow, investor return) plus a completeness checklist. A single blended score hid which figures were measured, estimated or missing.",
+  ),
+  "INVESTMENT_HEALTH.healthyUtilisationPct": removed(
+    "See INVESTMENT_HEALTH.weights. §12.3 requires utilisation published against fixed, versioned denominators instead.",
+  ),
+  "INVESTMENT_HEALTH.healthyRevenuePerPilePerDayMinor": removed(
+    "See INVESTMENT_HEALTH.weights. §25.4 reports budget vs actual and scenario returns instead of a 'healthy' constant.",
+  ),
+  "INVESTMENT_HEALTH.greenAtOrAbove": removed("See INVESTMENT_HEALTH.weights."),
+  "INVESTMENT_HEALTH.amberAtOrAbove": removed("See INVESTMENT_HEALTH.weights."),
+  "BOOKING.slotMinutes": "BOOKING_SLOT",
+  "BOOKING.minMinutes": "BOOKING_MIN_MINUTES",
+  "BOOKING.maxMinutes": "BOOKING_MAX_MINUTES",
+  "BOOKING.graceBeforeMinutes": "BOOKING_WINDOW_BEFORE_MINUTES",
+  "BOOKING.graceAfterMinutes": "BOOKING_WINDOW_AFTER_MINUTES",
+  "BOOKING.maxAheadHours": "BOOKING_MAX_AHEAD_HOURS",
+  "BOOKING.maxLiveBookingsPerDriver": "BOOKING_MAX_LIVE_PER_DRIVER",
+} as const satisfies Record<string, ConfigKey | RemovedKey>;
+
+export type LegacyKey = keyof typeof POLICY_KEY_MIGRATION;
+
+const isRemoved = (v: ConfigKey | RemovedKey): v is RemovedKey =>
+  typeof v === "object" && v !== null && "removed" in v;
+
+/** Thrown when code references a configuration key that does not exist. */
+export class UnknownConfigKeyError extends Error {
+  constructor(key: string, hint: string) {
+    super(`Unknown configuration key "${key}". ${hint}`);
+    this.name = "UnknownConfigKeyError";
+  }
+}
+
+/**
+ * Resolve a key that may still be written in v1.1 form.
+ * Throws on an unknown key and on a key v2.1 removed, so CI fails rather than
+ * silently reading `undefined` (§19.5).
+ */
+export const resolvePolicyKey = (key: string): ConfigKey => {
+  if (Object.prototype.hasOwnProperty.call(CONFIG, key)) return key as ConfigKey;
+
+  const mapped: (ConfigKey | RemovedKey) | undefined = Object.prototype.hasOwnProperty.call(
+    POLICY_KEY_MIGRATION,
+    key,
+  )
+    ? POLICY_KEY_MIGRATION[key as LegacyKey]
+    : undefined;
+
+  if (mapped === undefined) {
+    throw new UnknownConfigKeyError(key, "It is not in CONFIG and not in POLICY_KEY_MIGRATION.");
+  }
+  if (isRemoved(mapped)) {
+    throw new UnknownConfigKeyError(key, `Removed in v2.1: ${mapped.reason}`);
+  }
+  return mapped;
+};
+
+/** Look up a definition, accepting v1.1 keys. Throws on unknown/removed keys. */
+export const getConfig = (key: string): AnyConfigDefinition => CONFIG[resolvePolicyKey(key)];
+
+/* ------------------------------------------------------------------ */
+/* Production guards                                                   */
+/* ------------------------------------------------------------------ */
+
+export type ConfigProblem = { readonly key: string; readonly problem: string };
+
+/**
+ * Collect every reason a value may not drive production behaviour (§19.5):
+ *  - `null` (unknown) — the dependent feature must stay disabled
+ *  - `PENDING_VERIFICATION` — never drives production
+ *  - `PROPOSED` — test environments only until an approved registry record exists
+ *  - `VERIFIED_EXTERNAL` without a `source` document
+ *  - a mandatory value with no `mandatory` enforcement point
+ */
+export const findProductionBlockers = (
+  keys: readonly ConfigKey[] = Object.keys(CONFIG) as ConfigKey[],
+): readonly ConfigProblem[] => {
+  const problems: ConfigProblem[] = [];
+  for (const key of keys) {
+    const def: AnyConfigDefinition = CONFIG[key];
+    if (def.key !== key) {
+      problems.push({
+        key,
+        problem: `key field is "${def.key}" but the registry name is "${key}"`,
+      });
+    }
+    if (def.status === "PENDING_VERIFICATION") {
+      problems.push({ key, problem: "PENDING_VERIFICATION — awaiting authoritative evidence" });
+      continue;
+    }
+    if (def.value === null) {
+      problems.push({
+        key,
+        problem: "value is null (unknown) — dependent feature must stay disabled",
+      });
+      continue;
+    }
+    if (def.status === "PROPOSED") {
+      problems.push({ key, problem: "PROPOSED — needs an approved configuration record first" });
+    }
+    if (def.status === "VERIFIED_EXTERNAL" && !def.source) {
+      problems.push({
+        key,
+        problem: "VERIFIED_EXTERNAL without a source document in docs/evidence/",
+      });
+    }
+    if (def.currency !== null && !/_AMOUNT(_PER_[A-Z]+)?$/.test(def.key)) {
+      problems.push({ key, problem: "has a currency but is not named *_AMOUNT" });
+    }
+  }
+  return problems;
+};
+
+/**
+ * Call this on the startup path of any production deployment, passing the keys
+ * the enabled features actually read. Blocks nulls, pending values, proposed
+ * values and "verified" values without a source (§19.5).
+ */
+export const assertUsableInProduction = (keys?: readonly ConfigKey[]): void => {
+  const problems = findProductionBlockers(keys);
+  if (problems.length > 0) {
+    const lines = problems.map((p) => `  - ${p.key}: ${p.problem}`).join("\n");
+    throw new Error(
+      `Configuration is not usable in production (policy.ts §19.5):\n${lines}\n` +
+        `Resolve each item in an approved versioned configuration record, or keep the dependent feature disabled and labelled.`,
+    );
+  }
+};
+
+/**
+ * CI check: every v1.1 registry key must appear in `POLICY_KEY_MIGRATION`, and
+ * every mapping target must exist in `CONFIG`. Returns the offending keys.
+ */
+export const assertMigrationMapComplete = (
+  legacyKeys: readonly string[],
+): readonly ConfigProblem[] => {
+  const problems: ConfigProblem[] = [];
+  for (const key of legacyKeys) {
+    if (!Object.prototype.hasOwnProperty.call(POLICY_KEY_MIGRATION, key)) {
+      problems.push({ key, problem: "v1.1 key missing from POLICY_KEY_MIGRATION" });
+    }
+  }
+  for (const [legacy, target] of Object.entries(POLICY_KEY_MIGRATION)) {
+    if (!isRemoved(target) && !Object.prototype.hasOwnProperty.call(CONFIG, target)) {
+      problems.push({ key: legacy, problem: `maps to "${target}" which is not in CONFIG` });
+    }
+  }
+  return problems;
+};
+
+/* ------------------------------------------------------------------ */
+/* Legacy re-exports — keep the working prototype compiling (rule 6)   */
 /* ------------------------------------------------------------------ */
 
 /**
- * A booking holds one pile for a window, with a tolerance either side so a
- * driver stuck in Kigali traffic does not lose the slot. Rules live here and
- * are enforced both in pure code (src/lib/reservations.ts) and by a database
- * overlap constraint, so two drivers can never hold the same pile.
+ * The 21 modules listed in OPEN_QUESTIONS.md Q-02 still import these v1.1
+ * value groups. They are re-exported unchanged so no working behaviour moves
+ * in this commit. New code must read `CONFIG` above.
+ *
+ * `EMPOWER` is UZA's driver-financing product, not part of uza-charge scope;
+ * it has no v2.1 key and is simply passed through.
  */
-export const BOOKING = {
-  slotMinutes: assumed(30, "2026-09-08", "Bookings are offered in half-hour slots."),
-  minMinutes: assumed(15, "2026-09-08", "Shortest useful booking."),
-  maxMinutes: assumed(180, "2026-09-08", "Longest single booking on a public pile."),
-  graceBeforeMinutes: assumed(
-    10,
-    "2026-09-08",
-    "Early tolerance: the pile is held from ten minutes before the slot.",
-  ),
-  graceAfterMinutes: assumed(
-    10,
-    "2026-09-08",
-    "Late tolerance: after this the booking is a no-show and the pile is released.",
-  ),
-  maxAheadHours: assumed(24, "2026-09-08", "How far ahead a driver may book."),
-  maxLiveBookingsPerDriver: assumed(2, "2026-09-08", "Stops one driver hoarding piles."),
-} as const;
+export {
+  CURRENCY,
+  HOME_COUNTRY,
+  SUPPORTED_COUNTRIES,
+  TIMEZONE,
+  TARIFF_DEFAULTS,
+  TOU_TIER_MULTIPLIER,
+  REVENUE_SPLIT_DEFAULTS,
+  PAYOUT_SCHEDULES,
+  DEFAULT_PAYOUT_SCHEDULE,
+  PAYMENT_RAILS as LEGACY_PAYMENT_RAILS,
+  PREAUTH_AMOUNT_MINOR,
+  MIN_WALLET_TOPUP_MINOR,
+  OCPP,
+  UPTIME_TARGETS,
+  SUBSCRIPTION_DEFAULTS,
+  FORECAST,
+  INVESTMENT_HEALTH,
+  EMPOWER,
+  BOOKING,
+  LEGACY_POLICY_REGISTRY,
+} from "./policy.legacy";
 
-export const POLICY_REGISTRY: ReadonlyArray<{ key: string; policy: PolicyValue<unknown> }> = [
-
-  { key: "HOME_COUNTRY", policy: HOME_COUNTRY },
-  { key: "SUPPORTED_COUNTRIES", policy: SUPPORTED_COUNTRIES },
-  { key: "TIMEZONE", policy: TIMEZONE },
-  { key: "TARIFF_DEFAULTS.energyMinorPerKwh", policy: TARIFF_DEFAULTS.energyMinorPerKwh },
-  { key: "TARIFF_DEFAULTS.timeMinorPerMinute", policy: TARIFF_DEFAULTS.timeMinorPerMinute },
-  { key: "TARIFF_DEFAULTS.sessionFeeMinor", policy: TARIFF_DEFAULTS.sessionFeeMinor },
-  { key: "TARIFF_DEFAULTS.idleFeeMinorPerMinute", policy: TARIFF_DEFAULTS.idleFeeMinorPerMinute },
-  { key: "TARIFF_DEFAULTS.idleGraceMinutes", policy: TARIFF_DEFAULTS.idleGraceMinutes },
-  { key: "TOU_TIER_MULTIPLIER.valley", policy: TOU_TIER_MULTIPLIER.valley },
-  { key: "TOU_TIER_MULTIPLIER.standard", policy: TOU_TIER_MULTIPLIER.standard },
-  { key: "TOU_TIER_MULTIPLIER.peak", policy: TOU_TIER_MULTIPLIER.peak },
-  { key: "TOU_TIER_MULTIPLIER.sharp", policy: TOU_TIER_MULTIPLIER.sharp },
-  { key: "REVENUE_SPLIT_DEFAULTS.version", policy: REVENUE_SPLIT_DEFAULTS.version },
-  {
-    key: "REVENUE_SPLIT_DEFAULTS.energyCostMinorPerKwh",
-    policy: REVENUE_SPLIT_DEFAULTS.energyCostMinorPerKwh,
-  },
-  { key: "REVENUE_SPLIT_DEFAULTS.hostShareBps", policy: REVENUE_SPLIT_DEFAULTS.hostShareBps },
-  {
-    key: "REVENUE_SPLIT_DEFAULTS.platformShareBps",
-    policy: REVENUE_SPLIT_DEFAULTS.platformShareBps,
-  },
-  { key: "PAYOUT_SCHEDULES", policy: PAYOUT_SCHEDULES },
-  { key: "DEFAULT_PAYOUT_SCHEDULE", policy: DEFAULT_PAYOUT_SCHEDULE },
-  { key: "PAYMENT_RAILS", policy: PAYMENT_RAILS },
-  { key: "PREAUTH_AMOUNT_MINOR", policy: PREAUTH_AMOUNT_MINOR },
-  { key: "MIN_WALLET_TOPUP_MINOR", policy: MIN_WALLET_TOPUP_MINOR },
-  { key: "OCPP.protocol", policy: OCPP.protocol },
-  { key: "OCPP.heartbeatIntervalSeconds", policy: OCPP.heartbeatIntervalSeconds },
-  { key: "OCPP.offlineAfterMissedHeartbeats", policy: OCPP.offlineAfterMissedHeartbeats },
-  { key: "OCPP.houseStandardKw", policy: OCPP.houseStandardKw },
-  { key: "UPTIME_TARGETS.greenAtOrAbovePct", policy: UPTIME_TARGETS.greenAtOrAbovePct },
-  { key: "UPTIME_TARGETS.amberAtOrAbovePct", policy: UPTIME_TARGETS.amberAtOrAbovePct },
-  { key: "UPTIME_TARGETS.minObservationHours", policy: UPTIME_TARGETS.minObservationHours },
-  { key: "SUBSCRIPTION_DEFAULTS.plans", policy: SUBSCRIPTION_DEFAULTS.plans },
-  { key: "SUBSCRIPTION_DEFAULTS.trialDays", policy: SUBSCRIPTION_DEFAULTS.trialDays },
-  { key: "SUBSCRIPTION_DEFAULTS.invoiceDueDays", policy: SUBSCRIPTION_DEFAULTS.invoiceDueDays },
-  { key: "SUBSCRIPTION_DEFAULTS.billingDay", policy: SUBSCRIPTION_DEFAULTS.billingDay },
-  { key: "FORECAST.minDaysForProjection", policy: FORECAST.minDaysForProjection },
-  { key: "FORECAST.recentDays", policy: FORECAST.recentDays },
-  { key: "FORECAST.minBandPct", policy: FORECAST.minBandPct },
-  { key: "FORECAST.flatBandPct", policy: FORECAST.flatBandPct },
-  { key: "INVESTMENT_HEALTH.weights", policy: INVESTMENT_HEALTH.weights },
-  { key: "INVESTMENT_HEALTH.healthyUtilisationPct", policy: INVESTMENT_HEALTH.healthyUtilisationPct },
-  { key: "INVESTMENT_HEALTH.healthyRevenuePerPilePerDayMinor", policy: INVESTMENT_HEALTH.healthyRevenuePerPilePerDayMinor },
-  { key: "INVESTMENT_HEALTH.greenAtOrAbove", policy: INVESTMENT_HEALTH.greenAtOrAbove },
-  { key: "INVESTMENT_HEALTH.amberAtOrAbove", policy: INVESTMENT_HEALTH.amberAtOrAbove },
-  { key: "BOOKING.slotMinutes", policy: BOOKING.slotMinutes },
-  { key: "BOOKING.minMinutes", policy: BOOKING.minMinutes },
-  { key: "BOOKING.maxMinutes", policy: BOOKING.maxMinutes },
-  { key: "BOOKING.graceBeforeMinutes", policy: BOOKING.graceBeforeMinutes },
-  { key: "BOOKING.graceAfterMinutes", policy: BOOKING.graceAfterMinutes },
-  { key: "BOOKING.maxAheadHours", policy: BOOKING.maxAheadHours },
-  { key: "BOOKING.maxLiveBookingsPerDriver", policy: BOOKING.maxLiveBookingsPerDriver },
-];
+export type { TouTier, LegacyPolicyStatus, LegacyPolicyValue } from "./policy.legacy";
