@@ -59,7 +59,13 @@ The per-screen recount comes after Gad's Gate 1 review.
 - Finance: OPEN. Reconciliation exists; finance-only staff cannot reach the NOC console (defect 9).
 - P2 and P3: not started this session (Stage 5).
 
-**Pull requests** (branch `feat/go-live-usable` in each repo; review in the order api → driver, owner, operator, noc): links are in each PR, opened against that repo's current feature branch.
+**Pull requests** (review in this order; each targets that repo's current feature branch)
+1. API: https://github.com/iradyv7-ship-it/uza-charge-api/pull/2 (merge first)
+2. Driver: https://github.com/iradyv7-ship-it/uza-charge-driver/pull/2
+3. Owner: https://github.com/iradyv7-ship-it/uza-charge-owner/pull/2
+4. Attendant: https://github.com/iradyv7-ship-it/uza-charge-operator/pull/2
+5. NOC: https://github.com/iradyv7-ship-it/uza-charge-noc/pull/2
+6. Spec and these docs: https://github.com/iradyv7-ship-it/uza-charge/pull/2
 
 **NEXT 3 ACTIONS**
 1. Gad reviews and merges the five PRs, and reads REALITY-AUDIT.md for Gate 1. Owner: Gad. By 6 Nov.
