@@ -4,6 +4,33 @@ One entry per working session, newest first, in the format of `GO-LIVE.md` §4. 
 
 ---
 
+## 3 Nov 2026 · STAGE 3 (local rehearsal) · GATE 3: OPEN · LEVEL reached: L1
+
+**Problems first**
+- **The four app images are not built yet.** Their last step needs the nginx base image. Docker Hub, and later Amazon's mirror (public.ecr.aws), refused connections through the VPN. The apps' production builds (`npm run build`) pass on this machine; only the image packaging waits on the network. On a server in a data centre this does not apply.
+- **Builds behind EonVPN need a workaround.** The VPN's MTU is 1380, while containers use 1500, so large downloads stalled. Building with `--network host` fixed it (recorded in `deploy/README.md`).
+- **Low memory on the laptop.** Claude Code stopped the local demo stack and Postgres while the session was idle. No data was lost; they restart with `node start.mjs` and `scripts/demo.sh`.
+
+**PROVEN** (Docker on this laptop)
+- Images built for the API, the gateway and both tools images.
+- Production Postgres started healthy, and its init script created both databases and roles.
+- Both migrations ran from the images. `bootstrap.sh` created the network, the first owner and the network admin.
+- The API and gateway started in production mode. The gateway reported healthy, and the API served the bootstrapped network.
+- Production refuses simulated payments, and now on-screen sign-in codes too. New tests in `src/config/production-guard.test.ts` cover every refusal.
+- Two more audit defects fixed (19: booking day in Kigali time; 23: unknown regulatory pack refused).
+- All six PRs updated.
+
+**BLOCKED**
+- Unchanged from 2 Nov: a staging host and domain, MoMo and Airtel accounts, an SMS provider, and the real charger.
+- New: the app images need either a connection without the VPN, or the server itself.
+
+**NEXT 3 ACTIONS**
+1. Gad reviews the PRs (API first). Owner: Gad.
+2. Provide a staging host. There, `docker compose build && up` should now go through, because each step was rehearsed here. Owner: Gad.
+3. MTN MoMo developer sandbox and Africa's Talking sandbox. Owner: Yves.
+
+---
+
 ## 2 Nov 2026 · STAGE 1 (+ fixes to P1 journeys) · GATE 1: OPEN · LEVEL reached: L1
 
 **Problems first**

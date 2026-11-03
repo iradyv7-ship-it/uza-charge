@@ -61,11 +61,11 @@ Numbers 1–22 are from the code trace; 23 onwards were found walking the journe
 | 16 | Invented "90 seconds to plug in"; paid amount could show 0 | **FIXED** | driver `PayPage.tsx` |
 | 17 | Sites with no pin at 0,0 | **FIXED** | api `prisma.ts` |
 | 18 | Business values hard-coded (booking policy, amount limits, cash presets, NOC thresholds, "RWF") | **OPEN** | Gad |
-| 19 | Booking day wrong between 00:00 and 02:00 Kigali time | **OPEN** | Gad |
+| 19 | Booking day wrong between 00:00 and 02:00 Kigali time | **FIXED** (3 Nov): the phone's calendar day | driver `BookPage.tsx` |
 | 20 | P&L shows uncosted lines as 0 "Entered" | **OPEN** | Gad |
 | 21 | Raw OCPP log has no charger time or clock drift | **OPEN** | Gad |
 | 22 | Smaller gaps (RURA report site filter, stale guard comments) | **OPEN**. The per-shift receipt list is fixed by the shift model | Gad |
-| 23 | The seed accepted a regulatory pack name that does not exist (`RW-RURA-2026`) without complaint | **OPEN**: validate in `seed-dev.ts` and in network settings | Gad |
+| 23 | The seed accepted a regulatory pack name that does not exist (`RW-RURA-2026`) without complaint | **FIXED** (3 Nov) in `seed-dev.ts`; network settings still accept any code | api `regulatory-pack.ts` `KNOWN_PACKS` |
 | 24 | Recommended checklist items (master plan, not law) blocked a site from the map | **FIXED**: only `basis: REGULATION` items gate it (§11, §19.5) | api `regulatory-pack.ts` `checklistReviewed` |
 | 25 | Nothing could turn bookings on for a site | **FIXED**: owner site form switch | api `onboarding.ts`; owner `SiteFormPage.tsx` |
 | 26 | The map price had an empty currency | **FIXED** | api `locator.service.ts` |
