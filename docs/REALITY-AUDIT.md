@@ -83,7 +83,7 @@ These are recorded in the rules registry as unknown, and the NOC lists them as b
 
 - **Attendant float per shift** (`ATTENDANT_SHIFT_FLOAT_AMOUNT`). With none set, no attendant shift opens.
 - **Booking fee.** None exists, and every screen says booking is free.
-- **Exposure limits, revenue share, seller of record, payout fee per rail.** These are the four paid-launch decisions in GO-LIVE §8.
+- **Exposure limits, seller of record, payout fee per rail.** Three of the four paid-launch decisions in GO-LIVE §8. The fourth, revenue share, was **decided on 4 Nov 2026**: a 15% commission on every successful charge, taken from the amount paid, with the owner carrying the provider's fee (D-03).
 - **Real prices.** The demo tariff is development seed data. Owners set real prices in the portal.
 
 ## Blocked (needs someone outside the code)

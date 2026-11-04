@@ -58,7 +58,7 @@ Gad coordinates architecture and delivery; Saddock takes scoped implementation o
 |---|---|---|
 | D-01 | Wallet/ledger/payouts live in `uza-mobility-bn` spine (recommended) vs separate service | Spine |
 | D-02 | SaaS prices per connector (Monitor / Operate) | null |
-| D-03 | Network transaction fee % (Operate) and management fee % (Managed) | null |
+| D-03 | Network transaction fee % (Operate) and management fee % (Managed) | **Transaction fee DECIDED 4 Nov 2026:** commission model, the network earns 15% of every successful charge, taken from the amount the driver paid; the station owner carries the payment provider's collection fee; an owner's agreement may set another rate (rules `PLATFORM_COMMISSION_BPS`, `PLATFORM_COMMISSION_BASIS`; source `docs/incoming/OCPP EV Charging Station Management Platform.pdf` §3). Management fee % (Model B): still null |
 | D-04 | In Model B, who holds the RURA licence for the site — owner or UZA? (affects seller of record, VAT, levy, liability) | Owner |
 | D-05 | Who pays MoMo/Airtel disbursement fees on owner payouts; default payout mode | Owner pays; daily sweep |
 | D-06 | Booking slot length options | 45 min |

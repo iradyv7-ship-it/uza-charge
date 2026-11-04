@@ -4,6 +4,30 @@ One entry per working session, newest first, in the format of `GO-LIVE.md` §4. 
 
 ---
 
+## 4 Nov 2026 (later) · DECISION RECORDED: the commission model · GATE 1: OPEN · LEVEL reached: L1
+
+**Decision (Yves, from `docs/incoming/OCPP EV Charging Station Management Platform.pdf`)**
+- The platform earns a commission on every successful charging transaction: **15% to the network, 85% to the station owner**, by default.
+- The commission is a percentage of **what the driver paid**. The owner carries the payment provider's collection fee. For example, a charge paid at 10,000 with a 200 fee gives 1,500 to the network and 8,300 to the owner.
+- An owner's own agreement may set another rate. The network admin types it when approving the application; left empty, the default applies.
+- **Flutterwave is not chosen yet.** It stays a proposal until Flutterwave confirms the points in §8 of that document: split payments for Rwanda, owner settlement to MoMo or bank, fees and onboarding.
+
+**What changed in the code** (API, NOC; tested on PostgreSQL)
+- New rules, both FOUNDER_DECIDED, visible in the NOC's Rules screen:
+  - `PLATFORM_COMMISSION_BPS` = 1500;
+  - `PLATFORM_COMMISSION_BASIS` = AMOUNT_PAID.
+- Settlement and card charging take the commission from the amount paid, before deductions. A charge whose fees exceed the owner's side is refused, not paid negative.
+- Approving an owner writes their commission: the default, or the rate typed. The NOC approval form has the field.
+- **Fixed on the way:** an owner with no commission recorded was settled at 0% to the network, while the owner screens read the same owner as 0% to the owner. Both now use the network default.
+
+**Still open:**
+- The management fee for Model B.
+- Who pays payout (disbursement) fees: `PAYOUT_FEE_PAID_BY`, still PROPOSED as OWNER.
+- Exposure limits.
+- Seller of record.
+
+---
+
 ## 4 Nov 2026 · STAGE 1 (remaining defects) · GATE 1: OPEN · LEVEL reached: L1
 
 **Problems first**
