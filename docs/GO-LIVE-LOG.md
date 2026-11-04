@@ -4,6 +4,43 @@ One entry per working session, newest first, in the format of `GO-LIVE.md` §4. 
 
 ---
 
+## 4 Nov 2026 · STAGE 1 (remaining defects) · GATE 1: OPEN · LEVEL reached: L1
+
+**Problems first**
+- **Not re-walked in a browser.** These fixes are proven by tests, including the whole API suite on PostgreSQL. The browser walkthrough of 2 Nov has not been repeated on top of them. It should be, on the staging host.
+- **Two new questions for Gad, both written into the code as the safe choice:**
+  - Cash an attendant owes back to a driver (a charge that never started, or change) stays on the ledger as owed until something records it was handed back (operator Q-03).
+  - Finance-only staff see Admin and complaints, not the live estate.
+- **Eleven new rules are PROPOSED values** (booking policy, prepaid min/max, two NOC thresholds). They are the old hard-coded values, now editable. Nobody has decided them.
+
+**PROVEN** (tests)
+- All 33 audit defects are now fixed. These were the last nine:
+  - 6: attendant cash on the ledger;
+  - 9: finance staff can use the console;
+  - 13: cash idempotency;
+  - 18: hard-coded values moved to rules;
+  - 20: P&L unknown costs;
+  - 21: charger time in the OCPP log;
+  - 22: report site filter and stale docs;
+  - 31: simulator power cap;
+  - 33: re-alert on a recurrence.
+- `uza-charge-api`: 1,474 passing on PostgreSQL, none skipped; lint, typecheck and `openapi:check` clean.
+- `uza-charge-csms` 437, `uza-charge-operator` 96, `uza-charge-noc` 211 passing; each typechecks, lints and builds.
+
+**BLOCKED**
+- Unchanged: a staging host and domain, MoMo and Airtel accounts, an SMS provider, the real charger, and the business values (float, booking fee, the four paid-launch decisions).
+
+**Pull requests** (updated, plus one new)
+- API, attendant and NOC: the existing `#2` in each repo now carries these fixes.
+- Gateway (new): https://github.com/iradyv7-ship-it/uza-charge-csms/pull/2
+
+**NEXT 3 ACTIONS**
+1. Gad reviews the PRs, API first, then the gateway. Owner: Gad.
+2. Provide a staging host; repeat the browser walkthrough there from phones. Owner: Gad.
+3. Decide or confirm the PROPOSED values in the NOC's Rules screen, starting with the attendant float. Owner: Yves.
+
+---
+
 ## 3 Nov 2026 · STAGE 3 (local rehearsal) · GATE 3: OPEN · LEVEL reached: L1
 
 **Problems first**

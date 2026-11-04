@@ -48,23 +48,23 @@ Numbers 1–22 are from the code trace; 23 onwards were found walking the journe
 | 3 | A driver's app charges never reached their History | **FIXED**: optional driver identity on walk-up start; never required | api `public.controller.ts`, `driver.guard.ts` `optionalDriverId`; driver `PayPage.tsx` |
 | 4 | Bookings never expired; two missed ones locked the driver out | **FIXED**: a sweep every minute releases after T+2 (plus any extension), audited, SMS | api `booking.sweeper.ts`, `sweepNoShows`; proven live |
 | 5 | A booking did not hold the gun | **FIXED**: others are refused inside the hold; the booker starts and the booking is honoured; the scan page knows the booker | api `holdingBooking`, `sessions.service.ts`; driver `ConnectorPage.tsx` |
-| 6 | Attendant cash for charges uses the `agents` till, not the ledger-backed card-agent shifts | **OPEN (reduced)**. Shifts now open and close for real with a counted till, change due, and handback (Q-01, Q-05 done). Moving charge cash onto the ledger (`AgentShift` + postings) is a money-path change for Gad's review | Gad |
+| 6 | Attendant cash for charges uses the `agents` till, not the ledger-backed card-agent shifts | **FIXED (4 Nov)**: each cash receipt posts `ATTENDANT_CASH` (Dr cash in hand / Cr cash due) as the notes change hands; shift close posts the expected till handed over. Cash owed back to drivers stays visible on cash due until a return is recorded (operator Q-03) | api `operator.service.ts`, `wallet/ledger.ts` `attendantCashLines`; tested on PostgreSQL |
 | 7 | An attendant the owner adds could not take cash | **FIXED** through the shift model above. The float is the rules value `ATTENDANT_SHIFT_FLOAT_AMOUNT` (unset until decided) | api `operator.service.ts` `openShift`/`closeShift` |
 | 8 | Simulated chargers were not labelled in the driver or attendant apps | **FIXED** (scan page, map, bay). The banner still does not list sandbox rails | driver, operator, api `locator` |
-| 9 | Finance-only staff are locked out of the NOC console | **OPEN** | Gad (role decision) |
+| 9 | Finance-only staff are locked out of the NOC console | **FIXED (4 Nov)**: finance-only sign-ins are checked against the rules, offered Admin and complaints, and land on Admin. The live estate stays operations-only | noc `operations.tsx` `isFinanceOnly`, `App.tsx` |
 | 10 | Offline alert after 15 min, telling nobody | **FIXED**: default 5 min (still PROPOSED, adjustable); SMS to `NOC_ALERT_PHONES` and the owner's admins | api `incident-alerter.ts`, catalogue |
 | 11 | Wallet advertised as a payment method but unusable | **FIXED**: shown as coming soon | api `funding.ts` |
 | 12 | "We sent a code by SMS" when it was shown on screen | **FIXED** | api `auth.service.ts`, `public.controller.ts` |
-| 13 | Cash customer got no receipt; `POST /operator/cash` has no idempotency key | **PARTLY FIXED**: QR to the live charge and receipt. Idempotency key still **OPEN** (the button is disabled while sending) | Gad |
+| 13 | Cash customer got no receipt; `POST /operator/cash` has no idempotency key | **FIXED**: QR to the live charge and receipt (2 Nov); idempotency key (4 Nov). A repeat replays the first receipt and draws the float once; the same key for another amount is refused | api `operator.service.ts` `takeCash`; operator `StartPage.tsx` |
 | 14 | No owner self-registration | **FIXED**: public application, admin approval, SMS | api `applications/`, owner `ApplyPage.tsx`, NOC `ApplicationsPage.tsx` |
 | 15 | Booking screens promised a fee that is never charged | **FIXED**: "Booking is free" everywhere until a fee is decided | api `bookings.ts`, driver copy |
 | 16 | Invented "90 seconds to plug in"; paid amount could show 0 | **FIXED** | driver `PayPage.tsx` |
 | 17 | Sites with no pin at 0,0 | **FIXED** | api `prisma.ts` |
-| 18 | Business values hard-coded (booking policy, amount limits, cash presets, NOC thresholds, "RWF") | **OPEN** | Gad |
+| 18 | Business values hard-coded (booking policy, amount limits, cash presets, NOC thresholds, "RWF") | **FIXED (4 Nov)**: booking policy, prepaid min/max and the NOC stuck/stale thresholds are rules (PROPOSED, editable, site overrides). Payment/payout/refund currency falls back to the network's; the attendant screens use the shift's currency. Quick-pick amounts remain display presets, shown only inside the rule bounds | api `rules/catalogue.ts`, `bookingPolicyAt`; operator `useShiftCurrency` |
 | 19 | Booking day wrong between 00:00 and 02:00 Kigali time | **FIXED** (3 Nov): the phone's calendar day | driver `BookPage.tsx` |
-| 20 | P&L shows uncosted lines as 0 "Entered" | **OPEN** | Gad |
-| 21 | Raw OCPP log has no charger time or clock drift | **OPEN** | Gad |
-| 22 | Smaller gaps (RURA report site filter, stale guard comments) | **OPEN**. The per-shift receipt list is fixed by the shift model | Gad |
+| 20 | P&L shows uncosted lines as 0 "Entered" | **FIXED (4 Nov)**: an empty cost-book line is Unknown with what to do (an entered 0 stays Entered); subtotals name every unknown line | api `reports/pnl.ts` |
+| 21 | Raw OCPP log has no charger time or clock drift | **FIXED (4 Nov)**: the gateway keeps the charger's timestamp and the drift from arrival; meter samples keep their time without claiming drift | csms `handlers.ts` `chargerTimeOfFrame`, `ocpp.server.ts` |
+| 22 | Smaller gaps (RURA report site filter, stale guard comments) | **FIXED (4 Nov)**: owner and NOC monthly reports take `?siteId`; the attendant docs no longer say shifts cannot open | api `w3.controller.ts`; operator `OPEN_QUESTIONS.md` |
 | 23 | The seed accepted a regulatory pack name that does not exist (`RW-RURA-2026`) without complaint | **FIXED** (3 Nov) in `seed-dev.ts`; network settings still accept any code | api `regulatory-pack.ts` `KNOWN_PACKS` |
 | 24 | Recommended checklist items (master plan, not law) blocked a site from the map | **FIXED**: only `basis: REGULATION` items gate it (§11, §19.5) | api `regulatory-pack.ts` `checklistReviewed` |
 | 25 | Nothing could turn bookings on for a site | **FIXED**: owner site form switch | api `onboarding.ts`; owner `SiteFormPage.tsx` |
@@ -73,9 +73,9 @@ Numbers 1–22 are from the code trace; 23 onwards were found walking the journe
 | 28 | A cash driver's change was never stated; the till expected the full cash | **FIXED** | api `operator.service.ts` `changeDue` |
 | 29 | "Cash" and "attendant MoMo" were offered only with `?agent=true` in the URL | **FIXED**: offered when an attendant has a shift open at the site | api `sessions.service.ts` |
 | 30 | The attendant app said "UZA" in its copy (rule 21) | **FIXED** | operator i18n |
-| 31 | The simulator reports more power than the gun's rating (72 kW on 60 kW) | **OPEN** (simulator realism); the platform flags it correctly | Gad |
+| 31 | The simulator reports more power than the gun's rating (72 kW on 60 kW) | **FIXED (4 Nov)**: `--rated-kw` / `RATED_KW` caps it | csms `simulator/`; api `connect-simulator.sh` |
 | 32 | The demo did not start the attendant app on a real network | **FIXED** | api `scripts/demo.sh` |
-| 33 | A charger that goes silent again while its first incident is still open sends no new alert | **OPEN** (by design today; decide whether a re-offline should alert again) | Gad |
+| 33 | A charger that goes silent again while its first incident is still open sends no new alert | **FIXED (4 Nov)**: after a recovery, a recurrence is noted ("Happened again"), audited and alerted once; a continuing condition is not re-sent | api `incidents/auto-incidents.ts` |
 
 ## Decisions only Yves can make (the system refuses until they are set)
 
