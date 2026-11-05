@@ -4,6 +4,36 @@ One entry per working session, newest first, in the format of `GO-LIVE.md` §4. 
 
 ---
 
+## 5 Nov 2026 · Commission made settleable end to end · GATE 1: OPEN · LEVEL reached: L1
+
+**Problems first**
+- **No owner approved through the app could ever have been paid.** Settlement needs a revenue split rule per owner, and nothing but the development seed created one. The production bootstrap's first owner had none either. Fixed, and backfilled by the migration.
+- **The network's own stations would have paid the network a commission.** Model A owners now get an explicit 0%.
+- **The local demo stack is still on the earlier build.** The new migration is applied to its database, but its API has not been restarted.
+
+**PROVEN**
+- The commission is versioned on the owner's split rule. Version 1 is written at approval: the default, or the agreed rate. A change starts a new version from now. A settlement period that spans a change is refused, with the moment to split it at.
+- NOC → Admin → Subscriptions → Owners → **Commission** shows:
+  - the rate in force, and whether it is the network default;
+  - the network default;
+  - every earlier version.
+
+  Administrators can change the rate, with a reason. Finance can read it but not change it. Every change is audited.
+- Migration `20261104120000_split_rule_commission` was applied to the test and both local demo databases. On the demo database, the owner approved on 2 Nov ("Kivu Lodge Charging") now has v1 at the network default.
+- On a fresh migrated database, `bootstrap.sh`'s SQL run twice leaves exactly one v1 rule at 0% for the network's own owner.
+- Tests: `uza-charge-api` 1,485 on PostgreSQL; `uza-charge-noc` 214. Lint, typecheck, build and `openapi:check` are clean.
+
+**DECIDED (recommended option, under the founder's instruction of 5 Nov)**
+- D-05: the owner pays payout fees, consistent with D-03.
+
+**Still open (needs facts nobody has given yet, so not invented)**
+- The management fee for Model B.
+- Exposure limits.
+- Seller of record.
+- Payout fee amounts per rail (AWAITING CREDENTIALS).
+
+---
+
 ## 4 Nov 2026 (later) · DECISION RECORDED: the commission model · GATE 1: OPEN · LEVEL reached: L1
 
 **Decision (Yves, from `docs/incoming/OCPP EV Charging Station Management Platform.pdf`)**
