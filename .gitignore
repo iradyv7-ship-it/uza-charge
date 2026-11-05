@@ -30,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Files dropped in for reading (media, scans, Windows metadata) stay local
+docs/incoming/*.mp4
+docs/incoming/*.pdf
+desktop.ini
